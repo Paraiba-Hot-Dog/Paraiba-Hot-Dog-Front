@@ -1,7 +1,7 @@
 name: "🐛 Bug Report"
 description: Algo não está funcionando como deveria
 title: "[BUG]: "
-labels: ["origem:front"]  # ajustar origem conforme o repo
+labels: ["front"]  # ajustar origem conforme o repo
 type: "Bug"
 body:
   - type: textarea
