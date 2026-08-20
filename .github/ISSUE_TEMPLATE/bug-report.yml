@@ -1,7 +1,8 @@
 name: "🐛 Bug Report"
 description: Algo não está funcionando como deveria
 title: "[BUG]: "
-labels: ["type:bug", "origem:Paraiba-Hot-Dog-Front"]  # ajustar origem conforme o repo
+labels: ["origem:front"]  # ajustar origem conforme o repo
+type: "Bug"
 body:
   - type: textarea
     id: atual
@@ -51,4 +52,5 @@ body:
     attributes:
       label: Evidências
       description: Prints, logs, vídeos
+    validations:
       required: false
