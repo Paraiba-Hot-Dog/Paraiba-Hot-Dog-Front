@@ -1,7 +1,7 @@
 name: "📋 História de Usuário"
 description: Nova funcionalidade com valor direto para o usuário final
 title: "[HU]: "
-labels: ["origem:front"]
+labels: ["front"]
 type: "Feature"
 body:
   - type: textarea
