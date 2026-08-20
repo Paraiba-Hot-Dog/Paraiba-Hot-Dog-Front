@@ -1,7 +1,8 @@
 name: "🔧 Tarefa Técnica"
 description: CI/CD, infraestrutura, deploy, refactor, dívida técnica — sem entrega direta de valor ao usuário
 title: "[TECH]: "
-labels: ["type:chore", "origem:Paraiba-Hot-Dog-Front"]  # ajustar origem conforme o repo
+labels: ["origem:front"]  # ajustar origem conforme o repo
+type: "Task"
 body:
   - type: textarea
     id: contexto
@@ -34,4 +35,5 @@ body:
     id: impacto
     attributes:
       label: Impacto se não for feito
+    validations:
       required: false
