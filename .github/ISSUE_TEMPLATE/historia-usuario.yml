@@ -1,8 +1,8 @@
 name: "📋 História de Usuário"
 description: Nova funcionalidade com valor direto para o usuário final
 title: "[HU]: "
-labels: ["front"]
-type: "Feature"
+labels: ["front"]  # trocar back → front / docs conforme o repo
+type: "Feature"  # precisa existir como Issue Type na organização (ver item 2.5)
 body:
   - type: textarea
     id: historia
@@ -25,14 +25,6 @@ body:
         - [ ] Critério 1
         - [ ] Critério 2
         - [ ] Critério 3
-    validations:
-      required: true
-
-  - type: dropdown
-    id: prioridade
-    attributes:
-      label: Prioridade
-      options: ["Alta", "Média", "Baixa"]
     validations:
       required: true
 
