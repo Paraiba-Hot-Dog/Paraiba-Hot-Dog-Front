@@ -1,7 +1,7 @@
 name: "🔧 Tarefa Técnica"
 description: CI/CD, infraestrutura, deploy, refactor, dívida técnica — sem entrega direta de valor ao usuário
 title: "[TECH]: "
-labels: ["front"]  # ajustar origem conforme o repo
+labels: ["front"]  # trocar back → front / docs conforme o repo
 type: "Task"
 body:
   - type: textarea
@@ -20,14 +20,6 @@ body:
       placeholder: |
         - [ ] Item 1
         - [ ] Item 2
-    validations:
-      required: true
-
-  - type: dropdown
-    id: prioridade
-    attributes:
-      label: Prioridade
-      options: ["Alta", "Média", "Baixa"]
     validations:
       required: true
 
