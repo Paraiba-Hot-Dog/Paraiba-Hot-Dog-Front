@@ -128,7 +128,7 @@ function getAuthHeaders(): HeadersInit {
     readCookie("token") ??
     readCookie("access_token") ??
     readCookie("auth_token") ??
-    readCookie("kc_token");
+    readCookie("auth_token");
 
   return token ? { Authorization: `Bearer ${token}` } : {};
 }

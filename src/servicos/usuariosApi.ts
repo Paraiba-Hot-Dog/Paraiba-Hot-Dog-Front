@@ -18,7 +18,7 @@ export type UsuarioApi = {
   email: string
   funcao: FuncaoUsuarioApi
   unidade_id: number | null
-  keycloak_id: string | null
+  auth_provider_id: string | null
   permissoes: PermissaoApi[]
 }
 

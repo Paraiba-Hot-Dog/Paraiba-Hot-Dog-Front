@@ -23,7 +23,7 @@ function readToken() {
   const storedToken = getStoredToken()
   if (storedToken) return storedToken
 
-  for (const key of ['token', 'access_token', 'auth_token', 'kc_token']) {
+  for (const key of ['token', 'access_token', 'auth_token']) {
     const cookieToken = readCookie(key)
     if (cookieToken) return cookieToken
   }
@@ -31,12 +31,40 @@ function readToken() {
   return null
 }
 
+const cachedUserKey = 'cached_usuario_atual'
+
+function getCachedUser(): UsuarioApi | null {
+  try {
+    const raw = sessionStorage.getItem(cachedUserKey)
+    return raw ? (JSON.parse(raw) as UsuarioApi) : null
+  } catch {
+    return null
+  }
+}
+
+function setCachedUser(usuario: UsuarioApi | null) {
+  if (usuario) {
+    sessionStorage.setItem(cachedUserKey, JSON.stringify(usuario))
+  } else {
+    sessionStorage.removeItem(cachedUserKey)
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [usuarioAtual, setUsuarioAtual] = useState<UsuarioApi | null>(null)
-  const [isLoadingUser, setIsLoadingUser] = useState(false)
   const token = readToken()
-  const roles = tokenExpirado(token) ? [] : extrairRolesToken(token)
   const isAuthenticated = Boolean(token) && !tokenExpirado(token)
+  const [usuarioAtual, setUsuarioAtual] = useState<UsuarioApi | null>(
+    isAuthenticated ? getCachedUser() : null,
+  )
+  const [isLoadingUser, setIsLoadingUser] = useState(
+    isAuthenticated && !getCachedUser(),
+  )
+  const tokenRoles = tokenExpirado(token) ? [] : extrairRolesToken(token)
+  const roles = useMemo(() => {
+    const combined = new Set(tokenRoles)
+    if (usuarioAtual?.funcao) combined.add(usuarioAtual.funcao)
+    return [...combined]
+  }, [tokenRoles, usuarioAtual])
   const permissoes = useMemo(
     () => usuarioAtual?.permissoes.map((permissao) => permissao.nome) ?? [],
     [usuarioAtual],
@@ -50,12 +78,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!isAuthenticated) {
       setUsuarioAtual(null)
+      setCachedUser(null)
       setIsLoadingUser(false)
       return
     }
 
     let ativo = true
-    setIsLoadingUser(true)
+    if (!getCachedUser()) setIsLoadingUser(true)
 
     const carregarUsuario = identificadorEmail
       ? listarUsuariosApi({ email: identificadorEmail })
@@ -66,12 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!ativo) return
 
         const usuarioEncontrado =
-          usuarios.find((usuario) => subject && usuario.keycloak_id === subject) ??
+          usuarios.find((usuario) => subject && usuario.auth_provider_id === subject) ??
           usuarios.find((usuario) => emailToken && usuario.email === emailToken) ??
           usuarios.find((usuario) => identificadorEmail && usuario.email === identificadorEmail) ??
           null
 
         setUsuarioAtual(usuarioEncontrado)
+        setCachedUser(usuarioEncontrado)
       })
       .catch(() => {
         if (ativo) setUsuarioAtual(null)
@@ -101,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       hasRole: (role) => roles.includes(role),
       hasPermission: (permission) =>
-        permissoes.includes(permission) || (!usuarioAtual && roles.includes('administrador')),
+        permissoes.includes(permission) || roles.includes('administrador'),
     }
   }, [isAuthenticated, isLoadingUser, permissoes, roles, token, usuarioAtual])
 

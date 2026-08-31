@@ -3,10 +3,14 @@ type JwtPayload = {
   sub?: string
   email?: string
   preferred_username?: string
-  realm_access?: {
-    roles?: string[]
+  role?: string
+  user_metadata?: {
+    nome?: string
+    funcao?: string
   }
-  resource_access?: Record<string, { roles?: string[] }>
+  app_metadata?: {
+    role?: string
+  }
 }
 
 function decodificarBase64Url(valor: string) {
@@ -31,11 +35,12 @@ export function lerPayloadToken(token: string | null): JwtPayload | null {
 
 export function extrairRolesToken(token: string | null) {
   const payload = lerPayloadToken(token)
-  const roles = new Set(payload?.realm_access?.roles ?? [])
+  const roles = new Set<string>()
 
-  Object.values(payload?.resource_access ?? {}).forEach((client) => {
-    client.roles?.forEach((role) => roles.add(role))
-  })
+  // Supabase Auth: role pode estar em diferentes lugares
+  if (payload?.role) roles.add(payload.role)
+  if (payload?.user_metadata?.funcao) roles.add(payload.user_metadata.funcao)
+  if (payload?.app_metadata?.role) roles.add(payload.app_metadata.role)
 
   return [...roles]
 }
@@ -44,10 +49,6 @@ export function tokenExpirado(token: string | null) {
   const expiracao = lerPayloadToken(token)?.exp
 
   return expiracao ? expiracao * 1000 <= Date.now() : false
-}
-
-export function tokenPossuiRole(token: string | null, role: string) {
-  return extrairRolesToken(token).includes(role)
 }
 
 export function extrairEmailToken(token: string | null) {

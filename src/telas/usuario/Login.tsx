@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import logoBranca from '../../imagens/logos/logo-branca.png'
-import { loginWithKeycloak } from '../../servicos/authApi'
-import { extrairEmailToken, tokenPossuiRole } from '../../servicos/authToken'
+import { login } from '../../servicos/authApi'
+import { extrairEmailToken } from '../../servicos/authToken'
 import { listarUsuariosApi } from '../../servicos/usuariosApi'
 
 export default function Login() {
@@ -16,17 +16,14 @@ export default function Login() {
     setLoading(true)
 
     try {
-      const tokens = await loginWithKeycloak(email, password)
+      const tokens = await login(email, password)
       localStorage.setItem('logged_user_email', email)
-
-      if (tokenPossuiRole(tokens.access_token, 'administrador')) {
-        window.location.href = '/admin'
-        return
-      }
 
       const emailToken = extrairEmailToken(tokens.access_token)
       const usuarios = emailToken ? await listarUsuariosApi({ email: emailToken }) : []
-      if (usuarios[0]?.permissoes.length) {
+      const usuario = usuarios[0]
+
+      if (usuario?.funcao === 'administrador' || usuario?.permissoes.length) {
         window.location.href = '/admin'
         return
       }
@@ -119,20 +116,6 @@ export default function Login() {
               {loading ? 'ENTRANDO...' : 'ENTRAR'}
             </button>
           </form>
-
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() =>
-                (window.location.href =
-                  'http://localhost:8080/realms/master/login-actions/reset-credentials?client_id=account-console')
-              }
-              className="font-barlow text-sm text-cinza-base underline-offset-2 transition-colors hover:text-amarelo hover:underline"
-            >
-              Esqueci minha senha
-            </button>
-          </div>
-
 
         </div>
       </main>
