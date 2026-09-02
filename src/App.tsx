@@ -4,6 +4,7 @@ import Painel from './telas/administrador/Painel'
 import GestaoUnidades from './telas/administrador/GestaoUnidades'
 import GestaoUsuarios from './telas/administrador/GestaoUsuarios'
 import GestaoBlog from './telas/administrador/GestaoBlog'
+import EdicaoSobreNos from './telas/administrador/EdicaoSobreNos'
 import { useAuth } from './contextos/useAuth'
 import Cardapio from './telas/usuario/Cardapio'
 import CartaoFidelidade from './telas/usuario/CartaoFidelidade'
@@ -82,6 +83,10 @@ export default function App() {
     return <GestaoBlog />
   }
 
+  if (pathname === '/admin/configuracoes/sobre-nos') {
+    return <EdicaoSobreNos />
+  }
+
   if (pathname === '/admin/anotar-pedidos') {
     return <AnotarPedidos />
   }
@@ -141,6 +146,7 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin/configuracoes/usuarios') return `Usuários | ${baseTitle}`
   if (pathname === '/admin/configuracoes/unidades') return `Unidades | ${baseTitle}`
   if (pathname === '/admin/configuracoes/blog') return `Blog | ${baseTitle}`
+  if (pathname === '/admin/configuracoes/sobre-nos') return `Sobre Nós | ${baseTitle}`
   if (pathname === '/admin/anotar-pedidos') return `Anotar Pedidos | ${baseTitle}`
   if (pathname === '/dashboard' || pathname === '/admin/dashboard') return `Dashboard | ${baseTitle}`
   if (pathname === '/cozinha' || pathname === '/admin/cozinha') return `Cozinha | ${baseTitle}`
