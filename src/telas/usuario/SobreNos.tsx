@@ -7,6 +7,10 @@ import imgCarrossel3 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 
 import imgCarrossel4 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 11.10.03.jpeg'
 import { resolverUrlImagem } from '../../servicos/api'
 import { listarPostsBlogApi, resolverImagemBlogApi, type BlogPostApi, type TipoBlogApi } from '../../servicos/blogApi'
+import {
+  obterSobreNosApi,
+  TEXTO_PADRAO_SOBRE_NOS,
+} from '../../servicos/institucionalApi'
 
 const smashMandacaru = resolverUrlImagem('/uploads/produtos/smash-mandacaru.jpeg') ?? ''
 const dogArretado = resolverUrlImagem('/uploads/produtos/dog-arretado.jpeg') ?? ''
@@ -64,6 +68,7 @@ export default function SobreNos() {
   const [filtroExibido, setFiltroExibido] = useState<'todos' | TipoBlogApi>('todos')
   const [animandoFiltro, setAnimandoFiltro] = useState(false)
   const [carregandoPosts, setCarregandoPosts] = useState(true)
+  const [textoSobreNos, setTextoSobreNos] = useState(TEXTO_PADRAO_SOBRE_NOS)
   const timersRef = useRef<number[]>([])
 
   const historiaAtual = historias[imagemAtiva]
@@ -103,6 +108,21 @@ export default function SobreNos() {
     }
 
     carregarPosts()
+
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let ativo = true
+    obterSobreNosApi()
+      .then((conteudo) => {
+        if (ativo) setTextoSobreNos(conteudo.texto)
+      })
+      .catch(() => {
+        if (ativo) setTextoSobreNos(TEXTO_PADRAO_SOBRE_NOS)
+      })
 
     return () => {
       ativo = false
@@ -192,10 +212,7 @@ export default function SobreNos() {
 
             <div className="px-4 py-5 sm:px-6 sm:py-7">
               <p className="mx-auto max-w-4xl text-center font-barlow text-sm leading-7 text-branco/80 sm:text-base">
-                Nascemos da paixão pela gastronomia de rua e pelo sabor autêntico da Paraíba.
-                Desde 2015, levamos o melhor hot dog arretado para os brasilenses com qualidade,
-                fartura e tradição. Nossa missão é servir ingredientes frescos, receitas
-                exclusivas e um atendimento que faz você se sentir em casa.
+                {textoSobreNos}
               </p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3 sm:gap-4">
