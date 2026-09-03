@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type MouseEvent } from 'react'
-import { ArrowDown, ArrowUp, CheckCircle2, ImagePlus, LoaderCircle, Move, Trash2, Upload } from 'lucide-react'
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react'
+import { ArrowDown, ArrowUp, ImagePlus, Info, LoaderCircle, Move, Save, Trash2, Upload } from 'lucide-react'
 import BarraDeNavegacaoAdmin, {
   CLASSE_OFFSET_BARRA_ADMIN,
 } from '../../componentes/administrador/BarraDeNavegacaoAdmin'
+import ModalSucesso from '../../componentes/administrador/painel/ModalSucesso'
 import {
   atualizarImagemSobreNosApi,
   criarImagemSobreNosApi,
@@ -11,10 +12,21 @@ import {
   resolverImagemSobreNosApi,
   type SobreNosImagemApi,
 } from '../../servicos/sobreNosApi'
+import {
+  atualizarSobreNosApi,
+  obterSobreNosApi,
+  TEXTO_PADRAO_SOBRE_NOS,
+} from '../../servicos/institucionalApi'
 
 export default function EdicaoSobreNos() {
+  const [texto, setTexto] = useState(TEXTO_PADRAO_SOBRE_NOS)
+  const [carregandoTexto, setCarregandoTexto] = useState(true)
+  const [salvandoTexto, setSalvandoTexto] = useState(false)
+  const [erroTexto, setErroTexto] = useState('')
+  const [mostrarModalSucesso, setMostrarModalSucesso] = useState(false)
+
   const [imagens, setImagens] = useState<SobreNosImagemApi[]>([])
-  const [carregando, setCarregando] = useState(true)
+  const [carregandoImagens, setCarregandoImagens] = useState(true)
   const [arquivoSelecionado, setArquivoSelecionado] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [posicaoSelecionada, setPosicaoSelecionada] = useState('50% 50%')
@@ -23,8 +35,25 @@ export default function EdicaoSobreNos() {
   const [ajustandoPosicaoId, setAjustandoPosicaoId] = useState<number | null>(null)
   const [excluindoId, setExcluindoId] = useState<number | null>(null)
   const [imagemParaExcluir, setImagemParaExcluir] = useState<SobreNosImagemApi | null>(null)
-  const [erro, setErro] = useState('')
-  const [notificacao, setNotificacao] = useState<string | null>(null)
+  const [erroImagens, setErroImagens] = useState('')
+
+  useEffect(() => {
+    let ativo = true
+    obterSobreNosApi()
+      .then((conteudo) => {
+        if (ativo) setTexto(conteudo.texto)
+      })
+      .catch((error: Error) => {
+        if (ativo) setErroTexto(error.message)
+      })
+      .finally(() => {
+        if (ativo) setCarregandoTexto(false)
+      })
+
+    return () => {
+      ativo = false
+    }
+  }, [])
 
   useEffect(() => {
     let ativo = true
@@ -34,10 +63,10 @@ export default function EdicaoSobreNos() {
         if (ativo) setImagens(dados)
       })
       .catch((error) => {
-        if (ativo) setErro(mensagemErro(error))
+        if (ativo) setErroImagens(mensagemErro(error))
       })
       .finally(() => {
-        if (ativo) setCarregando(false)
+        if (ativo) setCarregandoImagens(false)
       })
 
     return () => {
@@ -53,12 +82,33 @@ export default function EdicaoSobreNos() {
 
   const imagensOrdenadas = useMemo(() => [...imagens].sort((a, b) => a.ordem - b.ordem), [imagens])
 
-  function limparAvisos() {
-    setErro('')
+  async function salvarTexto(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault()
+    const textoAtualizado = texto.trim()
+    if (!textoAtualizado) {
+      setErroTexto('Preencha o texto de Sobre Nós.')
+      return
+    }
+
+    setErroTexto('')
+    setSalvandoTexto(true)
+    try {
+      const conteudo = await atualizarSobreNosApi(textoAtualizado)
+      setTexto(conteudo.texto)
+      setMostrarModalSucesso(true)
+    } catch (error) {
+      setErroTexto(error instanceof Error ? error.message : 'Não foi possível salvar o texto.')
+    } finally {
+      setSalvandoTexto(false)
+    }
+  }
+
+  function limparAvisosImagens() {
+    setErroImagens('')
   }
 
   function escolherArquivo(evento: ChangeEvent<HTMLInputElement>) {
-    limparAvisos()
+    limparAvisosImagens()
     const arquivo = evento.target.files?.[0]
     if (!arquivo) return
 
@@ -77,11 +127,11 @@ export default function EdicaoSobreNos() {
 
   async function enviarImagem() {
     if (!arquivoSelecionado) {
-      setErro('Selecione uma imagem para enviar.')
+      setErroImagens('Selecione uma imagem para enviar.')
       return
     }
 
-    limparAvisos()
+    limparAvisosImagens()
     setEnviando(true)
     try {
       const criada = await criarImagemSobreNosApi(arquivoSelecionado, posicaoSelecionada)
@@ -90,9 +140,8 @@ export default function EdicaoSobreNos() {
       if (preview) URL.revokeObjectURL(preview)
       setPreview(null)
       setPosicaoSelecionada('50% 50%')
-      setNotificacao('Imagem adicionada ao carrossel.')
     } catch (error) {
-      setErro(mensagemErro(error))
+      setErroImagens(mensagemErro(error))
     } finally {
       setEnviando(false)
     }
@@ -103,7 +152,7 @@ export default function EdicaoSobreNos() {
     const vizinho = imagensOrdenadas[posicaoAtual + direcao]
     if (!vizinho) return
 
-    limparAvisos()
+    limparAvisosImagens()
     setReordenandoId(imagem.id)
     try {
       const [imagemAtualizada, vizinhoAtualizado] = await Promise.all([
@@ -118,7 +167,7 @@ export default function EdicaoSobreNos() {
         }),
       )
     } catch (error) {
-      setErro(mensagemErro(error))
+      setErroImagens(mensagemErro(error))
     } finally {
       setReordenandoId(null)
     }
@@ -127,13 +176,13 @@ export default function EdicaoSobreNos() {
   async function ajustarPosicao(imagem: SobreNosImagemApi, evento: MouseEvent<HTMLDivElement>) {
     const novaPosicao = calcularPosicaoClique(evento)
 
-    limparAvisos()
+    limparAvisosImagens()
     setAjustandoPosicaoId(imagem.id)
     try {
       const atualizada = await atualizarImagemSobreNosApi(imagem.id, { posicao: novaPosicao })
       setImagens((atuais) => atuais.map((item) => (item.id === atualizada.id ? atualizada : item)))
     } catch (error) {
-      setErro(mensagemErro(error))
+      setErroImagens(mensagemErro(error))
     } finally {
       setAjustandoPosicaoId(null)
     }
@@ -144,13 +193,12 @@ export default function EdicaoSobreNos() {
 
     const imagem = imagemParaExcluir
     setExcluindoId(imagem.id)
-    limparAvisos()
+    limparAvisosImagens()
     try {
       await excluirImagemSobreNosApi(imagem.id)
       setImagens((atuais) => atuais.filter((item) => item.id !== imagem.id))
-      setNotificacao('Imagem removida do carrossel.')
     } catch (error) {
-      setErro(mensagemErro(error))
+      setErroImagens(mensagemErro(error))
     } finally {
       setExcluindoId(null)
       setImagemParaExcluir(null)
@@ -162,23 +210,56 @@ export default function EdicaoSobreNos() {
       <BarraDeNavegacaoAdmin />
 
       <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amarelo/15">
+            <Info size={22} strokeWidth={1.75} aria-hidden />
+          </span>
           <div>
-            <p className="font-barlow-condensed text-sm font-black uppercase tracking-[0.24em] text-cinza-base">
-              Admin
-            </p>
-            <h1 className="font-barlow-condensed text-3xl font-black uppercase text-preto-v1 sm:text-5xl">
-              Sobre nós
+            <h1 className="font-barlow-condensed text-2xl font-bold uppercase sm:text-3xl">
+              Edição de Sobre Nós
             </h1>
-            <p className="mt-1 font-barlow text-cinza-base/70">
-              Gerencie as imagens do carrossel &quot;Nossa história&quot; exibido na página pública.
+            <p className="font-barlow text-cinza-base/70">
+              Atualize o texto e as imagens do carrossel &quot;Nossa história&quot; exibidos na página pública.
             </p>
           </div>
-
-          {notificacao && <Notificacao mensagem={notificacao} onFechar={() => setNotificacao(null)} />}
         </div>
 
-        <section className="mt-8 rounded-2xl border border-[#dde2ea] bg-white p-5 shadow-sm sm:p-6">
+        <section className="mt-8 rounded-2xl border border-[#d8dee7] bg-white p-6 shadow-sm sm:p-8">
+          <h2 className="font-barlow-condensed text-2xl font-black uppercase text-preto-v1">Texto</h2>
+
+          {carregandoTexto ? (
+            <p className="mt-6 font-barlow text-cinza-base">Carregando conteúdo...</p>
+          ) : (
+            <form className="mt-6 grid gap-4" onSubmit={salvarTexto}>
+              <label className="grid gap-1.5">
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-cinza-base">
+                  Texto
+                </span>
+                <textarea
+                  value={texto}
+                  onChange={(evento) => {
+                    setTexto(evento.target.value)
+                    setErroTexto('')
+                  }}
+                  rows={8}
+                  className="w-full resize-y rounded-xl border border-[#d8dee8] bg-white p-3 font-barlow leading-6 outline-none focus:border-amarelo"
+                  aria-label="Texto de Sobre Nós"
+                />
+              </label>
+              {erroTexto && <p className="font-barlow text-red-600">{erroTexto}</p>}
+              <button
+                type="submit"
+                disabled={salvandoTexto}
+                className="inline-flex w-fit items-center gap-2 rounded-xl bg-amarelo px-5 py-3 font-barlow-condensed font-black uppercase text-preto-v1 transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Save size={18} />
+                {salvandoTexto ? 'Salvando...' : 'Salvar alterações'}
+              </button>
+            </form>
+          )}
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-[#dde2ea] bg-white p-5 shadow-sm sm:p-6">
           <h2 className="font-barlow-condensed text-2xl font-black uppercase text-preto-v1">
             Adicionar imagem
           </h2>
@@ -232,7 +313,7 @@ export default function EdicaoSobreNos() {
             </div>
           )}
 
-          {erro && <p className="mt-4 text-sm font-semibold text-red-600">{erro}</p>}
+          {erroImagens && <p className="mt-4 text-sm font-semibold text-red-600">{erroImagens}</p>}
         </section>
 
         <section className="mt-6 rounded-2xl border border-[#dde2ea] bg-white p-5 shadow-sm sm:p-6">
@@ -245,7 +326,7 @@ export default function EdicaoSobreNos() {
             </span>
           </div>
 
-          {carregando ? (
+          {carregandoImagens ? (
             <p className="mt-6 text-sm text-cinza-base">Carregando imagens...</p>
           ) : imagensOrdenadas.length === 0 ? (
             <p className="mt-6 text-sm text-cinza-base">Nenhuma imagem cadastrada ainda.</p>
@@ -254,74 +335,74 @@ export default function EdicaoSobreNos() {
               {imagensOrdenadas.map((imagem, indice) => {
                 const foco = pontoFoco(imagem.posicao)
                 return (
-                <article
-                  key={imagem.id}
-                  className="flex flex-col gap-3 rounded-2xl border border-[#d8dee8] bg-white p-3 sm:flex-row"
-                >
-                  <div className="shrink-0">
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      aria-label="Clique para ajustar o enquadramento da imagem"
-                      onClick={(evento) => ajustarPosicao(imagem, evento)}
-                      className="relative h-40 w-full cursor-crosshair overflow-hidden rounded-xl border border-[#d8dee8] sm:h-28 sm:w-40"
-                    >
-                      <img
-                        src={resolverImagemSobreNosApi(imagem.imagem_url) ?? ''}
-                        alt={`Imagem ${indice + 1} do carrossel`}
-                        className="h-full w-full object-cover"
-                        style={{ objectPosition: imagem.posicao || 'center center' }}
-                      />
+                  <article
+                    key={imagem.id}
+                    className="flex flex-col gap-3 rounded-2xl border border-[#d8dee8] bg-white p-3 sm:flex-row"
+                  >
+                    <div className="shrink-0">
                       <div
-                        className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amarelo bg-preto-v1/60"
-                        style={{ left: `${foco.x}%`, top: `${foco.y}%` }}
-                      />
-                      {ajustandoPosicaoId === imagem.id && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                          <LoaderCircle size={20} className="animate-spin text-white" />
-                        </div>
-                      )}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Clique para ajustar o enquadramento da imagem"
+                        onClick={(evento) => ajustarPosicao(imagem, evento)}
+                        className="relative h-40 w-full cursor-crosshair overflow-hidden rounded-xl border border-[#d8dee8] sm:h-28 sm:w-40"
+                      >
+                        <img
+                          src={resolverImagemSobreNosApi(imagem.imagem_url) ?? ''}
+                          alt={`Imagem ${indice + 1} do carrossel`}
+                          className="h-full w-full object-cover"
+                          style={{ objectPosition: imagem.posicao || 'center center' }}
+                        />
+                        <div
+                          className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amarelo bg-preto-v1/60"
+                          style={{ left: `${foco.x}%`, top: `${foco.y}%` }}
+                        />
+                        {ajustandoPosicaoId === imagem.id && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                            <LoaderCircle size={20} className="animate-spin text-white" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="mt-1.5 flex items-center gap-1 text-[10px] text-cinza-base">
+                        <Move size={11} />
+                        Clique para ajustar o enquadramento
+                      </p>
                     </div>
-                    <p className="mt-1.5 flex items-center gap-1 text-[10px] text-cinza-base">
-                      <Move size={11} />
-                      Clique para ajustar o enquadramento
-                    </p>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cinza-base">
-                      Posição {indice + 1}
-                    </p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => mover(imagem, -1)}
-                        disabled={indice === 0 || reordenandoId !== null}
-                        className="inline-flex items-center gap-1 rounded-lg border border-[#d8dee8] px-3 py-2 text-[10px] font-black uppercase text-preto-v1 disabled:opacity-40"
-                      >
-                        <ArrowUp size={12} />
-                        Subir
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => mover(imagem, 1)}
-                        disabled={indice === imagensOrdenadas.length - 1 || reordenandoId !== null}
-                        className="inline-flex items-center gap-1 rounded-lg border border-[#d8dee8] px-3 py-2 text-[10px] font-black uppercase text-preto-v1 disabled:opacity-40"
-                      >
-                        <ArrowDown size={12} />
-                        Descer
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setImagemParaExcluir(imagem)}
-                        disabled={excluindoId === imagem.id}
-                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-[10px] font-black uppercase text-red-600 disabled:opacity-60"
-                      >
-                        <Trash2 size={12} />
-                        Excluir
-                      </button>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cinza-base">
+                        Posição {indice + 1}
+                      </p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => mover(imagem, -1)}
+                          disabled={indice === 0 || reordenandoId !== null}
+                          className="inline-flex items-center gap-1 rounded-lg border border-[#d8dee8] px-3 py-2 text-[10px] font-black uppercase text-preto-v1 disabled:opacity-40"
+                        >
+                          <ArrowUp size={12} />
+                          Subir
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => mover(imagem, 1)}
+                          disabled={indice === imagensOrdenadas.length - 1 || reordenandoId !== null}
+                          className="inline-flex items-center gap-1 rounded-lg border border-[#d8dee8] px-3 py-2 text-[10px] font-black uppercase text-preto-v1 disabled:opacity-40"
+                        >
+                          <ArrowDown size={12} />
+                          Descer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setImagemParaExcluir(imagem)}
+                          disabled={excluindoId === imagem.id}
+                          className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-[10px] font-black uppercase text-red-600 disabled:opacity-60"
+                        >
+                          <Trash2 size={12} />
+                          Excluir
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </article>
+                  </article>
                 )
               })}
             </div>
@@ -369,24 +450,8 @@ export default function EdicaoSobreNos() {
           </div>
         </div>
       )}
-    </div>
-  )
-}
 
-function Notificacao({ mensagem, onFechar }: { mensagem: string; onFechar: () => void }) {
-  useEffect(() => {
-    const timer = window.setTimeout(onFechar, 2500)
-    return () => window.clearTimeout(timer)
-  }, [mensagem, onFechar])
-
-  return (
-    <div
-      className="flex items-center gap-3 rounded-2xl border border-emerald-200/80 bg-emerald-50 px-6 py-4 font-barlow text-sm font-medium text-emerald-800 shadow-[0_4px_16px_rgba(16,185,129,0.1)] sm:text-base"
-      role="status"
-      aria-live="polite"
-    >
-      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 sm:h-6 sm:w-6" aria-hidden />
-      <span className="whitespace-nowrap">{mensagem}</span>
+      <ModalSucesso aberto={mostrarModalSucesso} onFechar={() => setMostrarModalSucesso(false)} />
     </div>
   )
 }
