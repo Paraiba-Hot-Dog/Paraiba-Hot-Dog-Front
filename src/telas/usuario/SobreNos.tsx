@@ -7,16 +7,18 @@ import imgCarrossel3 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 
 import imgCarrossel4 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 11.10.03.jpeg'
 import { resolverUrlImagem } from '../../servicos/api'
 import { listarPostsBlogApi, resolverImagemBlogApi, type BlogPostApi, type TipoBlogApi } from '../../servicos/blogApi'
+import { listarImagensSobreNosApi, resolverImagemSobreNosApi } from '../../servicos/sobreNosApi'
 
 const smashMandacaru = resolverUrlImagem('/uploads/produtos/smash-mandacaru.jpeg') ?? ''
 const dogArretado = resolverUrlImagem('/uploads/produtos/dog-arretado.jpeg') ?? ''
 
+type HistoriaImagem = { imagem: string; posicao: string }
 
-const historias = [
+const historiasFallback: HistoriaImagem[] = [
   { imagem: imgCarrossel4, posicao: 'center center' },
   { imagem: imgCarrossel2, posicao: 'center top' },
   { imagem: imgCarrossel3, posicao: 'center center' },
-] as const
+]
 
 const noticiasFallback = [
   {
@@ -64,9 +66,10 @@ export default function SobreNos() {
   const [filtroExibido, setFiltroExibido] = useState<'todos' | TipoBlogApi>('todos')
   const [animandoFiltro, setAnimandoFiltro] = useState(false)
   const [carregandoPosts, setCarregandoPosts] = useState(true)
+  const [historias, setHistorias] = useState<HistoriaImagem[]>(historiasFallback)
   const timersRef = useRef<number[]>([])
 
-  const historiaAtual = historias[imagemAtiva]
+  const historiaAtual = historias[imagemAtiva] ?? historiasFallback[0]
   const depoimento = depoimentos[depoimentoAtivo]
 
   const estatisticas = useMemo(
@@ -77,6 +80,33 @@ export default function SobreNos() {
     ],
     [],
   )
+
+  useEffect(() => {
+    let ativo = true
+
+    async function carregarHistorias() {
+      try {
+        const imagensApi = await listarImagensSobreNosApi()
+        if (!ativo || !imagensApi.length) return
+
+        setHistorias(
+          imagensApi.map((item) => ({
+            imagem: resolverImagemSobreNosApi(item.imagem_url) ?? '',
+            posicao: item.posicao || 'center center',
+          })),
+        )
+        setImagemAtiva(0)
+      } catch {
+        if (ativo) setHistorias(historiasFallback)
+      }
+    }
+
+    carregarHistorias()
+
+    return () => {
+      ativo = false
+    }
+  }, [])
 
   useEffect(() => {
     let ativo = true
