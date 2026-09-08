@@ -6,6 +6,7 @@ import BarraDeNavegacaoAdmin, {
 import { listarClientesApi, type ClienteApi } from '../../servicos/clientesApi'
 
 const TAMANHO_PAGINA = 10
+const ATRASO_BUSCA_MS = 200
 
 type Ordenacao = {
   campo: 'nome' | 'email' | 'telefone' | 'pontos_fidelidade'
@@ -18,6 +19,7 @@ export default function GestaoClientes() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [busca, setBusca] = useState('')
+  const [buscaAplicada, setBuscaAplicada] = useState('')
   const [ordenacao] = useState<Ordenacao>({
     campo: 'nome',
     direcao: 'asc',
@@ -26,11 +28,26 @@ export default function GestaoClientes() {
   const [tentativa, setTentativa] = useState(0)
 
   useEffect(() => {
+    const termo = busca.trim()
+    if (termo === buscaAplicada) return
+
+    const temporizador = setTimeout(() => {
+      setCarregando(true)
+      setErro('')
+      setPagina(0)
+      setBuscaAplicada(termo)
+    }, ATRASO_BUSCA_MS)
+
+    return () => clearTimeout(temporizador)
+  }, [busca, buscaAplicada])
+
+  useEffect(() => {
     let ativo = true
 
     listarClientesApi({
       skip: pagina * TAMANHO_PAGINA,
       limit: TAMANHO_PAGINA + 1,
+      busca: buscaAplicada || undefined,
     })
       .then((dados) => {
         if (!ativo) return
@@ -47,7 +64,7 @@ export default function GestaoClientes() {
     return () => {
       ativo = false
     }
-  }, [pagina, tentativa])
+  }, [pagina, buscaAplicada, tentativa])
 
   function voltarPagina() {
     setCarregando(true)
@@ -95,10 +112,8 @@ export default function GestaoClientes() {
               type="search"
               value={busca}
               onChange={(event) => setBusca(event.target.value)}
-              disabled
-              placeholder="Busca em breve"
-              title="A busca será habilitada quando a API aceitar pesquisa geral."
-              className="w-full rounded-xl border border-[#d8dee7] bg-white py-3 pl-10 pr-3 font-barlow text-sm text-cinza-base outline-none disabled:cursor-not-allowed disabled:bg-[#f7f9fc]"
+              placeholder="Buscar por nome, e-mail ou telefone"
+              className="w-full rounded-xl border border-[#d8dee7] bg-white py-3 pl-10 pr-3 font-barlow text-sm text-cinza-base outline-none transition focus:border-amarelo"
             />
           </label>
         </header>
@@ -121,7 +136,9 @@ export default function GestaoClientes() {
             </div>
           ) : clientes.length === 0 ? (
             <div className="flex min-h-56 items-center justify-center px-4 text-center font-barlow text-cinza-base">
-              Nenhum cliente cadastrado.
+              {buscaAplicada
+                ? `Nenhum cliente encontrado para "${buscaAplicada}".`
+                : 'Nenhum cliente cadastrado.'}
             </div>
           ) : (
             <>

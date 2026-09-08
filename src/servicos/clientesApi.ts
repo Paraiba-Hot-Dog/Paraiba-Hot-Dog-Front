@@ -15,6 +15,7 @@ export type ListarClientesParams = {
   nome?: string
   email?: string
   telefone?: string
+  busca?: string
 }
 
 export async function listarClientesApi(params: ListarClientesParams) {
