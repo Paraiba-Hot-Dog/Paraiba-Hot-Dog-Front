@@ -3,6 +3,7 @@ import EdicaoBlog from './EdicaoBlog'
 import EdicaoCardapio from './EdicaoCardapio'
 import EdicaoUnidades from './EdicaoUnidades'
 import GestaoUsuarios from './GestaoUsuarios'
+import GestaoClientes from './GestaoClientes'
 
 type ModalConfiguracoesProps = {
   aberto: boolean
@@ -48,6 +49,7 @@ export default function ModalConfiguracoes({
           <EdicaoCardapio onNavigate={onFechar} />
           <EdicaoBlog onNavigate={onFechar} />
           <GestaoUsuarios onNavigate={onFechar} />
+          <GestaoClientes onNavigate={onFechar} />
         </div>
       </div>
     </div>
