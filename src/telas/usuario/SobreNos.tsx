@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react'
 import BarraDeNavegacao from '../../componentes/usuario/BarraDeNavegacaoUsuario'
 import Rodape from '../../componentes/usuario/Rodape'
@@ -9,8 +9,10 @@ import { resolverUrlImagem } from '../../servicos/api'
 import { listarPostsBlogApi, resolverImagemBlogApi, type BlogPostApi, type TipoBlogApi } from '../../servicos/blogApi'
 import { listarImagensSobreNosApi, resolverImagemSobreNosApi } from '../../servicos/sobreNosApi'
 import {
+  ESTATISTICAS_PADRAO_SOBRE_NOS,
   obterSobreNosApi,
   TEXTO_PADRAO_SOBRE_NOS,
+  type EstatisticaSobreNosApi,
 } from '../../servicos/institucionalApi'
 
 const smashMandacaru = resolverUrlImagem('/uploads/produtos/smash-mandacaru.jpeg') ?? ''
@@ -72,19 +74,13 @@ export default function SobreNos() {
   const [carregandoPosts, setCarregandoPosts] = useState(true)
   const [historias, setHistorias] = useState<HistoriaImagem[]>(historiasFallback)
   const [textoSobreNos, setTextoSobreNos] = useState(TEXTO_PADRAO_SOBRE_NOS)
+  const [estatisticas, setEstatisticas] = useState<EstatisticaSobreNosApi[]>(
+    ESTATISTICAS_PADRAO_SOBRE_NOS.map((item) => ({ ...item })),
+  )
   const timersRef = useRef<number[]>([])
 
   const historiaAtual = historias[imagemAtiva] ?? historiasFallback[0]
   const depoimento = depoimentos[depoimentoAtivo]
-
-  const estatisticas = useMemo(
-    () => [
-      { valor: '10+', legenda: 'Anos de funcionamento' },
-      { valor: '4,9', legenda: 'Avaliação média' },
-      { valor: '3', legenda: 'Unidades' },
-    ],
-    [],
-  )
 
   useEffect(() => {
     let ativo = true
@@ -148,10 +144,14 @@ export default function SobreNos() {
     let ativo = true
     obterSobreNosApi()
       .then((conteudo) => {
-        if (ativo) setTextoSobreNos(conteudo.texto)
+        if (!ativo) return
+        setTextoSobreNos(conteudo.texto)
+        setEstatisticas(conteudo.estatisticas)
       })
       .catch(() => {
-        if (ativo) setTextoSobreNos(TEXTO_PADRAO_SOBRE_NOS)
+        if (!ativo) return
+        setTextoSobreNos(TEXTO_PADRAO_SOBRE_NOS)
+        setEstatisticas(ESTATISTICAS_PADRAO_SOBRE_NOS.map((item) => ({ ...item })))
       })
 
     return () => {
@@ -246,8 +246,8 @@ export default function SobreNos() {
               </p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3 sm:gap-4">
-                {estatisticas.map((item) => (
-                  <article key={item.legenda} className="rounded-2xl bg-[#242424] px-4 py-5 text-center">
+                {estatisticas.map((item, indice) => (
+                  <article key={`${item.legenda}-${indice}`} className="rounded-2xl bg-[#242424] px-4 py-5 text-center">
                     <strong className="block font-barlow-condensed text-4xl font-black text-amarelo">
                       {item.valor}
                     </strong>
