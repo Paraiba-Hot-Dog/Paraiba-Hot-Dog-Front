@@ -17,8 +17,11 @@ import {
   obterSobreNosApi,
   TEXTO_PADRAO_SOBRE_NOS,
 } from '../../servicos/institucionalApi'
+import { useAuth } from '../../contextos/useAuth'
 
 export default function EdicaoSobreNos() {
+  const { hasRole } = useAuth()
+  const podeEditarComoAdmin = hasRole('administrador')
   const [texto, setTexto] = useState(TEXTO_PADRAO_SOBRE_NOS)
   const [carregandoTexto, setCarregandoTexto] = useState(true)
   const [salvandoTexto, setSalvandoTexto] = useState(false)
@@ -84,6 +87,11 @@ export default function EdicaoSobreNos() {
 
   async function salvarTexto(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
+    if (!podeEditarComoAdmin) {
+      setErroTexto('Apenas administradores podem alterar o texto.')
+      return
+    }
+
     const textoAtualizado = texto.trim()
     if (!textoAtualizado) {
       setErroTexto('Preencha o texto de Sobre Nós.')
@@ -242,14 +250,20 @@ export default function EdicaoSobreNos() {
                     setErroTexto('')
                   }}
                   rows={8}
-                  className="w-full resize-y rounded-xl border border-[#d8dee8] bg-white p-3 font-barlow leading-6 outline-none focus:border-amarelo"
+                  disabled={!podeEditarComoAdmin}
+                  className="w-full resize-y rounded-xl border border-[#d8dee8] bg-white p-3 font-barlow leading-6 outline-none focus:border-amarelo disabled:cursor-not-allowed disabled:bg-[#f8fafc] disabled:opacity-70"
                   aria-label="Texto de Sobre Nós"
                 />
               </label>
               {erroTexto && <p className="font-barlow text-red-600">{erroTexto}</p>}
+              {!podeEditarComoAdmin && (
+                <p className="font-barlow text-sm text-cinza-base">
+                  Apenas administradores podem alterar o texto.
+                </p>
+              )}
               <button
                 type="submit"
-                disabled={salvandoTexto}
+                disabled={salvandoTexto || !podeEditarComoAdmin}
                 className="inline-flex w-fit items-center gap-2 rounded-xl bg-amarelo px-5 py-3 font-barlow-condensed font-black uppercase text-preto-v1 transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Save size={18} />

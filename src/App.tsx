@@ -63,6 +63,10 @@ export default function App() {
     return <AcessoNegado />
   }
 
+  if (pathname === '/admin/configuracoes/sobre-nos' && !hasRole('administrador')) {
+    return <AcessoNegado />
+  }
+
   if (pathname === '/admin') {
     return <Painel />
   }

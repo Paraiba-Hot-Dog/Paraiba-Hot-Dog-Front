@@ -24,12 +24,12 @@ export async function obterSobreNosApi() {
 }
 
 export async function atualizarSobreNosApi(texto: string) {
-  return respostaJson<SobreNosApi>(
-    await apiFetch('/institucional/sobre-nos', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ texto }),
-    }),
-    'Sobre Nós',
-  )
+  const response = await apiFetch('/institucional/sobre-nos', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ texto }),
+  })
+
+  if (!response.ok) throw new Error(`Erro ${response.status} ao atualizar texto`)
+  return (await response.json()) as SobreNosApi
 }
