@@ -3,6 +3,7 @@ import EdicaoBlog from './EdicaoBlog'
 import EdicaoCardapio from './EdicaoCardapio'
 import EdicaoUnidades from './EdicaoUnidades'
 import GestaoUsuarios from './GestaoUsuarios'
+import EdicaoAvaliacao from './EdicaoAvaliacao'
 
 type ModalConfiguracoesProps = {
   aberto: boolean
@@ -17,14 +18,14 @@ export default function ModalConfiguracoes({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-6 sm:items-center sm:py-10"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-configuracoes-titulo"
       onClick={onFechar}
     >
       <div
-        className="relative w-full max-w-sm rounded-lg bg-branco p-4 pt-8 shadow-md sm:max-w-lg sm:p-6 sm:pt-10"
+        className="relative my-auto max-h-[calc(100dvh-3rem)] w-full max-w-sm overflow-y-auto rounded-lg bg-branco p-4 pt-8 shadow-md sm:max-h-[calc(100dvh-5rem)] sm:max-w-lg sm:p-6 sm:pt-10"
         onClick={(event) => event.stopPropagation()}
       >
         <button
@@ -48,6 +49,7 @@ export default function ModalConfiguracoes({
           <EdicaoCardapio onNavigate={onFechar} />
           <EdicaoBlog onNavigate={onFechar} />
           <GestaoUsuarios onNavigate={onFechar} />
+          <EdicaoAvaliacao onNavigate={onFechar} />
         </div>
       </div>
     </div>
