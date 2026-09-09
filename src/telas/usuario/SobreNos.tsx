@@ -7,6 +7,7 @@ import imgCarrossel3 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 
 import imgCarrossel4 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 11.10.03.jpeg'
 import { resolverUrlImagem } from '../../servicos/api'
 import { listarPostsBlogApi, resolverImagemBlogApi, type BlogPostApi, type TipoBlogApi } from '../../servicos/blogApi'
+import { listarAvaliacoesApi, NOTA_MAXIMA, type AvaliacaoApi } from '../../servicos/avaliacoesApi'
 
 const smashMandacaru = resolverUrlImagem('/uploads/produtos/smash-mandacaru.jpeg') ?? ''
 const dogArretado = resolverUrlImagem('/uploads/produtos/dog-arretado.jpeg') ?? ''
@@ -35,39 +36,61 @@ const noticiasFallback = [
   },
 ]
 
-const depoimentos = [
+type Depoimento = {
+  nome: string
+  texto: string
+  estrelas: number
+}
+
+const depoimentosFallback: Depoimento[] = [
   {
     nome: 'Juliana Costa',
-    cidade: 'Brasília',
     texto:
       'Simplesmente perfeito. O sabor paraibano autêntico que eu procurava. Toda semana estou lá.',
+    estrelas: 5,
   },
   {
     nome: 'Marcos Lima',
-    cidade: 'Taguatinga',
     texto:
       'O combo sai rápido e chega bonito. O atendimento e a história da marca passam muita verdade.',
+    estrelas: 5,
   },
   {
     nome: 'Fernanda Alves',
-    cidade: 'Águas Claras',
     texto:
       'Sempre volto pelo sabor e pela consistência. Os dogs e os acompanhamentos não falham.',
+    estrelas: 5,
   },
 ]
 
 export default function SobreNos() {
   const [imagemAtiva, setImagemAtiva] = useState(0)
   const [depoimentoAtivo, setDepoimentoAtivo] = useState(0)
+  const [avaliacoes, setAvaliacoes] = useState<AvaliacaoApi[]>([])
   const [posts, setPosts] = useState<BlogCard[]>([])
   const [filtro, setFiltro] = useState<'todos' | TipoBlogApi>('todos')
   const [filtroExibido, setFiltroExibido] = useState<'todos' | TipoBlogApi>('todos')
   const [animandoFiltro, setAnimandoFiltro] = useState(false)
+  const [animandoDepoimento, setAnimandoDepoimento] = useState(false)
   const [carregandoPosts, setCarregandoPosts] = useState(true)
   const timersRef = useRef<number[]>([])
+  const depoimentoTimersRef = useRef<number[]>([])
+
+  const depoimentos = useMemo<Depoimento[]>(() => {
+    if (!avaliacoes.length) return depoimentosFallback
+
+    return avaliacoes.map((avaliacao) => ({
+      nome: avaliacao.nome_cliente,
+      texto: avaliacao.descricao,
+      estrelas: avaliacao.estrelas,
+    }))
+  }, [avaliacoes])
 
   const historiaAtual = historias[imagemAtiva]
-  const depoimento = depoimentos[depoimentoAtivo]
+  const indiceDepoimento = depoimentos.length
+    ? depoimentoAtivo % depoimentos.length
+    : 0
+  const depoimento = depoimentos[indiceDepoimento]
 
   const estatisticas = useMemo(
     () => [
@@ -109,13 +132,47 @@ export default function SobreNos() {
     }
   }, [])
 
+  useEffect(() => {
+    let ativo = true
+
+    listarAvaliacoesApi(true)
+      .then((dados) => {
+        if (ativo) setAvaliacoes(dados)
+      })
+      .catch(() => {
+        if (ativo) setAvaliacoes([])
+      })
+
+    return () => {
+      ativo = false
+    }
+  }, [])
+
   useEffect(
     () => () => {
       timersRef.current.forEach((timer) => window.clearTimeout(timer))
       timersRef.current = []
+      depoimentoTimersRef.current.forEach((timer) => window.clearTimeout(timer))
+      depoimentoTimersRef.current = []
     },
     [],
   )
+
+  const trocarDepoimento = (resolver: (indiceAtual: number) => number) => {
+    if (depoimentos.length < 2) return
+
+    depoimentoTimersRef.current.forEach((timer) => window.clearTimeout(timer))
+    setAnimandoDepoimento(true)
+
+    const trocaTimer = window.setTimeout(() => {
+      setDepoimentoAtivo((atual) => resolver(atual))
+    }, 160)
+    const fimTimer = window.setTimeout(() => {
+      setAnimandoDepoimento(false)
+    }, 340)
+
+    depoimentoTimersRef.current = [trocaTimer, fimTimer]
+  }
 
   const atualizarFiltro = (novoFiltro: 'todos' | TipoBlogApi) => {
     timersRef.current.forEach((timer) => window.clearTimeout(timer))
@@ -311,46 +368,69 @@ export default function SobreNos() {
             </h2>
           </div>
 
-          <div className="mx-auto mt-8 max-w-4xl rounded-2xl bg-[#2a2a2a] px-5 py-6 shadow-[0_12px_40px_rgba(0,0,0,0.3)] sm:px-8">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-barlow-condensed text-xl font-black uppercase">{depoimento.nome}</p>
-                <p className="text-xs uppercase tracking-[0.2em] text-branco/50">{depoimento.cidade}</p>
+          <div className="mx-auto mt-8 max-w-4xl overflow-hidden rounded-2xl bg-[#2a2a2a] px-5 py-6 shadow-[0_12px_40px_rgba(0,0,0,0.3)] sm:px-8">
+            <div
+              className={`transition-all duration-300 ease-out ${
+                animandoDepoimento
+                  ? 'translate-y-1 opacity-0 blur-[1px]'
+                  : 'translate-y-0 opacity-100 blur-0'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="font-barlow-condensed text-xl font-black uppercase break-words">
+                    {depoimento.nome}
+                  </p>
+                </div>
+                <div
+                  className="flex shrink-0 items-center gap-1 text-amarelo"
+                  aria-label={`${depoimento.estrelas} de ${NOTA_MAXIMA} estrelas`}
+                >
+                  {Array.from({ length: NOTA_MAXIMA }).map((_, index) => (
+                    <Star
+                      key={index}
+                      size={16}
+                      fill={index < depoimento.estrelas ? 'currentColor' : 'none'}
+                      className={index < depoimento.estrelas ? 'text-amarelo' : 'text-branco/25'}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-1 text-amarelo" aria-label="5 estrelas">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <Star key={index} size={16} fill="currentColor" />
-                ))}
-              </div>
-            </div>
 
-            <p className="mt-5 text-sm leading-7 text-branco/80 sm:text-base">
-              &quot;{depoimento.texto}&quot;
-            </p>
+              <p className="mt-5 min-h-[6rem] text-sm leading-7 text-branco/80 whitespace-pre-line break-words sm:text-base">
+                &quot;{depoimento.texto}&quot;
+              </p>
+            </div>
 
             <div className="mt-6 flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => setDepoimentoAtivo((atual) => (atual - 1 + depoimentos.length) % depoimentos.length)}
+                onClick={() =>
+                  trocarDepoimento(
+                    (atual) => (atual - 1 + depoimentos.length) % depoimentos.length,
+                  )
+                }
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-amarelo text-preto-v1 transition hover:brightness-95"
                 aria-label="Depoimento anterior"
               >
                 <ChevronLeft size={20} />
               </button>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap justify-center gap-2">
                 {depoimentos.map((item, index) => (
                   <button
-                    key={item.nome}
+                    key={`${item.nome}-${index}`}
                     type="button"
-                    onClick={() => setDepoimentoAtivo(index)}
-                    className={`h-2.5 rounded-full transition-all ${index === depoimentoAtivo ? 'w-8 bg-amarelo' : 'w-2.5 bg-branco/25'}`}
+                    onClick={() => trocarDepoimento(() => index)}
+                    className={`h-2.5 rounded-full transition-all ${index === indiceDepoimento ? 'w-8 bg-amarelo' : 'w-2.5 bg-branco/25'}`}
                     aria-label={`Ver depoimento de ${item.nome}`}
                   />
                 ))}
               </div>
               <button
                 type="button"
-                onClick={() => setDepoimentoAtivo((atual) => (atual + 1) % depoimentos.length)}
+                onClick={() =>
+                  trocarDepoimento((atual) => (atual + 1) % depoimentos.length)
+                }
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-amarelo text-preto-v1 transition hover:brightness-95"
                 aria-label="Proximo depoimento"
               >

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   CheckCircle2,
   Eye,
@@ -11,12 +11,12 @@ import {
   Trash2,
   User,
   X,
-} from 'lucide-react'
+} from "lucide-react";
 import BarraDeNavegacaoAdmin, {
   CLASSE_OFFSET_BARRA_ADMIN,
-} from '../../componentes/administrador/BarraDeNavegacaoAdmin'
+} from "../../componentes/administrador/BarraDeNavegacaoAdmin";
 import {
-  atualizarStatusAvaliacaoApi,
+  atualizarAvaliacaoApi,
   criarAvaliacaoApi,
   excluirAvaliacaoApi,
   limitarNota,
@@ -25,215 +25,222 @@ import {
   NOTA_MAXIMA,
   NOTA_MINIMA,
   type AvaliacaoApi,
-} from '../../servicos/avaliacoesApi'
+} from "../../servicos/avaliacoesApi";
 
-const MAX_FEEDBACK = 600
-const MAX_NOME = 80
+const MAX_FEEDBACK = 600;
+const MAX_NOME = 80;
 
 /** Mantém apenas letras (incluindo acentuadas e "ç") e espaços. */
 function sanitizarNome(valor: string) {
-  return valor.replace(/[^\p{L}\p{M}\s]/gu, '').slice(0, MAX_NOME)
+  return valor.replace(/[^\p{L}\p{M}\s]/gu, "").slice(0, MAX_NOME);
 }
 
 type FormularioAvaliacao = {
-  nomeCliente: string
-  descricao: string
-  estrelas: number
-}
+  nomeCliente: string;
+  descricao: string;
+  estrelas: number;
+};
 
 const formularioVazio: FormularioAvaliacao = {
-  nomeCliente: '',
-  descricao: '',
+  nomeCliente: "",
+  descricao: "",
   estrelas: 5,
-}
+};
 
 export default function GestaoAvaliacoes() {
-  const [avaliacoes, setAvaliacoes] = useState<AvaliacaoApi[]>([])
-  const [formulario, setFormulario] = useState<FormularioAvaliacao>(formularioVazio)
-  const [notaDraft, setNotaDraft] = useState(String(formularioVazio.estrelas))
-  const [carregando, setCarregando] = useState(true)
-  const [salvando, setSalvando] = useState(false)
-  const [alterandoId, setAlterandoId] = useState<number | null>(null)
-  const [excluindoId, setExcluindoId] = useState<number | null>(null)
-  const [avaliacaoParaExcluir, setAvaliacaoParaExcluir] = useState<AvaliacaoApi | null>(null)
-  const [modalCadastroAberto, setModalCadastroAberto] = useState(false)
-  const [avaliacaoEmEdicao, setAvaliacaoEmEdicao] = useState<AvaliacaoApi | null>(null)
-  const [erro, setErro] = useState('')
-  const [notificacao, setNotificacao] = useState<string | null>(null)
+  const [avaliacoes, setAvaliacoes] = useState<AvaliacaoApi[]>([]);
+  const [formulario, setFormulario] =
+    useState<FormularioAvaliacao>(formularioVazio);
+  const [notaDraft, setNotaDraft] = useState(String(formularioVazio.estrelas));
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [alterandoId, setAlterandoId] = useState<number | null>(null);
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
+  const [avaliacaoParaExcluir, setAvaliacaoParaExcluir] =
+    useState<AvaliacaoApi | null>(null);
+  const [modalCadastroAberto, setModalCadastroAberto] = useState(false);
+  const [avaliacaoEmEdicao, setAvaliacaoEmEdicao] =
+    useState<AvaliacaoApi | null>(null);
+  const [erro, setErro] = useState("");
+  const [notificacao, setNotificacao] = useState<string | null>(null);
 
   useEffect(() => {
-    let ativo = true
+    let ativo = true;
 
     listarTodasAvaliacoesApi()
       .then((dados) => {
-        if (ativo) setAvaliacoes([...dados].sort((a, b) => b.id - a.id))
+        if (ativo) setAvaliacoes([...dados].sort((a, b) => b.id - a.id));
       })
       .catch((error) => {
-        if (ativo) setErro(mensagemErro(error))
+        if (ativo) setErro(mensagemErro(error));
       })
       .finally(() => {
-        if (ativo) setCarregando(false)
-      })
+        if (ativo) setCarregando(false);
+      });
 
     return () => {
-      ativo = false
-    }
-  }, [])
+      ativo = false;
+    };
+  }, []);
 
   const visiveis = useMemo(
     () => avaliacoes.filter((avaliacao) => avaliacao.ativo).length,
     [avaliacoes],
-  )
+  );
 
-  const editando = avaliacaoEmEdicao !== null
-  const nomePreenchido = formulario.nomeCliente.trim().length > 0
-  const textoPreenchido = formulario.descricao.trim().length > 0
-  const notaOk = notaValida(formulario.estrelas)
-  const formularioValido = nomePreenchido && textoPreenchido && notaOk
+  const editando = avaliacaoEmEdicao !== null;
+  const nomePreenchido = formulario.nomeCliente.trim().length > 0;
+  const textoPreenchido = formulario.descricao.trim().length > 0;
+  const notaOk = notaValida(formulario.estrelas);
+  const formularioValido = nomePreenchido && textoPreenchido && notaOk;
 
   function limparAvisos() {
-    setErro('')
+    setErro("");
   }
 
   function definirNota(valor: number) {
-    limparAvisos()
-    const nota = limitarNota(valor)
-    setFormulario((atual) => ({ ...atual, estrelas: nota }))
-    setNotaDraft(String(nota))
+    limparAvisos();
+    const nota = limitarNota(valor);
+    setFormulario((atual) => ({ ...atual, estrelas: nota }));
+    setNotaDraft(String(nota));
   }
 
   function digitarNota(texto: string) {
-    limparAvisos()
-    setNotaDraft(texto)
-    const numero = Number(texto)
-    if (texto.trim() !== '' && Number.isFinite(numero)) {
-      setFormulario((atual) => ({ ...atual, estrelas: limitarNota(numero) }))
+    limparAvisos();
+    setNotaDraft(texto);
+    const numero = Number(texto);
+    if (texto.trim() !== "" && Number.isFinite(numero)) {
+      setFormulario((atual) => ({ ...atual, estrelas: limitarNota(numero) }));
     }
   }
 
   function confirmarNota() {
-    const nota = limitarNota(Number(notaDraft))
-    setFormulario((atual) => ({ ...atual, estrelas: nota }))
-    setNotaDraft(String(nota))
+    const nota = limitarNota(Number(notaDraft));
+    setFormulario((atual) => ({ ...atual, estrelas: nota }));
+    setNotaDraft(String(nota));
   }
 
   function abrirModalCadastro() {
-    limparAvisos()
-    setAvaliacaoEmEdicao(null)
-    setFormulario(formularioVazio)
-    setNotaDraft(String(formularioVazio.estrelas))
-    setModalCadastroAberto(true)
+    limparAvisos();
+    setAvaliacaoEmEdicao(null);
+    setFormulario(formularioVazio);
+    setNotaDraft(String(formularioVazio.estrelas));
+    setModalCadastroAberto(true);
   }
 
   function abrirModalEdicao(avaliacao: AvaliacaoApi) {
-    limparAvisos()
-    setAvaliacaoEmEdicao(avaliacao)
+    limparAvisos();
+    setAvaliacaoEmEdicao(avaliacao);
     setFormulario({
       nomeCliente: avaliacao.nome_cliente,
       descricao: avaliacao.descricao,
       estrelas: avaliacao.estrelas,
-    })
-    setNotaDraft(String(avaliacao.estrelas))
-    setModalCadastroAberto(true)
+    });
+    setNotaDraft(String(avaliacao.estrelas));
+    setModalCadastroAberto(true);
   }
 
   function fecharModalCadastro() {
-    if (salvando) return
-    limparAvisos()
-    setModalCadastroAberto(false)
-    setAvaliacaoEmEdicao(null)
+    if (salvando) return;
+    limparAvisos();
+    setModalCadastroAberto(false);
+    setAvaliacaoEmEdicao(null);
   }
 
   async function salvar(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault()
-    limparAvisos()
+    evento.preventDefault();
+    limparAvisos();
 
-    const nomeCliente = formulario.nomeCliente.trim()
-    const descricao = formulario.descricao.trim()
+    const nomeCliente = formulario.nomeCliente.trim();
+    const descricao = formulario.descricao.trim();
 
     if (!nomeCliente || !descricao) {
-      setErro('Preencha o nome do cliente e o texto do feedback.')
-      return
+      setErro("Preencha o nome do cliente e o texto do feedback.");
+      return;
     }
 
     if (!notaValida(formulario.estrelas)) {
-      setErro(`A nota precisa ser um número inteiro entre ${NOTA_MINIMA} e ${NOTA_MAXIMA}.`)
-      return
+      setErro(
+        `A nota precisa ser um número inteiro entre ${NOTA_MINIMA} e ${NOTA_MAXIMA}.`,
+      );
+      return;
     }
 
-    if (avaliacaoEmEdicao) {
-      // TODO: chamar a API de edição quando o endpoint existir no back.
-      const atualizada: AvaliacaoApi = {
-        ...avaliacaoEmEdicao,
-        nome_cliente: nomeCliente,
-        descricao,
-        estrelas: formulario.estrelas,
-      }
-      setAvaliacoes((atuais) =>
-        atuais.map((item) => (item.id === atualizada.id ? atualizada : item)),
-      )
-      setFormulario(formularioVazio)
-      setNotaDraft(String(formularioVazio.estrelas))
-      setModalCadastroAberto(false)
-      setAvaliacaoEmEdicao(null)
-      setNotificacao('Avaliação atualizada com sucesso.')
-      return
-    }
-
-    setSalvando(true)
+    setSalvando(true);
     try {
+      if (avaliacaoEmEdicao) {
+        const atualizada = await atualizarAvaliacaoApi(avaliacaoEmEdicao.id, {
+          nome_cliente: nomeCliente,
+          descricao,
+          estrelas: formulario.estrelas,
+        });
+        setAvaliacoes((atuais) =>
+          atuais.map((item) => (item.id === atualizada.id ? atualizada : item)),
+        );
+        setFormulario(formularioVazio);
+        setNotaDraft(String(formularioVazio.estrelas));
+        setModalCadastroAberto(false);
+        setAvaliacaoEmEdicao(null);
+        setNotificacao("Avaliação atualizada com sucesso.");
+        return;
+      }
+
       const criada = await criarAvaliacaoApi({
         nome_cliente: nomeCliente,
         descricao,
         estrelas: formulario.estrelas,
-      })
-      setAvaliacoes((atuais) => [criada, ...atuais])
-      setFormulario(formularioVazio)
-      setNotaDraft(String(formularioVazio.estrelas))
-      setModalCadastroAberto(false)
-      setNotificacao('Avaliação cadastrada com sucesso.')
+      });
+      setAvaliacoes((atuais) => [criada, ...atuais]);
+      setFormulario(formularioVazio);
+      setNotaDraft(String(formularioVazio.estrelas));
+      setModalCadastroAberto(false);
+      setNotificacao("Avaliação cadastrada com sucesso.");
     } catch (error) {
-      setErro(mensagemErro(error))
+      setErro(mensagemErro(error));
     } finally {
-      setSalvando(false)
+      setSalvando(false);
     }
   }
 
   async function alternarStatus(avaliacao: AvaliacaoApi) {
-    limparAvisos()
-    setAlterandoId(avaliacao.id)
+    limparAvisos();
+    setAlterandoId(avaliacao.id);
     try {
-      const atualizada = await atualizarStatusAvaliacaoApi(avaliacao.id, !avaliacao.ativo)
+      const atualizada = await atualizarAvaliacaoApi(avaliacao.id, {
+        ativo: !avaliacao.ativo,
+      });
       setAvaliacoes((atuais) =>
         atuais.map((item) => (item.id === atualizada.id ? atualizada : item)),
-      )
+      );
       setNotificacao(
         atualizada.ativo
-          ? 'Avaliação exibida na página principal.'
-          : 'Avaliação ocultada da página principal.',
-      )
+          ? "Avaliação exibida na página principal."
+          : "Avaliação ocultada da página principal.",
+      );
     } catch (error) {
-      setErro(mensagemErro(error))
+      setErro(mensagemErro(error));
     } finally {
-      setAlterandoId(null)
+      setAlterandoId(null);
     }
   }
 
   async function confirmarExclusao() {
-    if (!avaliacaoParaExcluir) return
+    if (!avaliacaoParaExcluir) return;
 
-    const avaliacao = avaliacaoParaExcluir
-    setExcluindoId(avaliacao.id)
-    limparAvisos()
+    const avaliacao = avaliacaoParaExcluir;
+    setExcluindoId(avaliacao.id);
+    limparAvisos();
     try {
-      await excluirAvaliacaoApi(avaliacao.id)
-      setAvaliacoes((atuais) => atuais.filter((item) => item.id !== avaliacao.id))
-      setNotificacao('Avaliação excluída com sucesso.')
+      await excluirAvaliacaoApi(avaliacao.id);
+      setAvaliacoes((atuais) =>
+        atuais.filter((item) => item.id !== avaliacao.id),
+      );
+      setNotificacao("Avaliação excluída com sucesso.");
     } catch (error) {
-      setErro(mensagemErro(error))
+      setErro(mensagemErro(error));
     } finally {
-      setExcluindoId(null)
-      setAvaliacaoParaExcluir(null)
+      setExcluindoId(null);
+      setAvaliacaoParaExcluir(null);
     }
   }
 
@@ -252,7 +259,8 @@ export default function GestaoAvaliacoes() {
                 Avaliações
               </h1>
               <span className="rounded-full bg-[#f2f5fa] px-3.5 py-1.5 text-xs font-black uppercase text-cinza-base sm:text-sm">
-                {avaliacoes.length} {avaliacoes.length === 1 ? 'avaliação' : 'avaliações'}
+                {avaliacoes.length}{" "}
+                {avaliacoes.length === 1 ? "avaliação" : "avaliações"}
               </span>
               <span className="rounded-full bg-emerald-100 px-3.5 py-1.5 text-xs font-black uppercase text-emerald-700 sm:text-sm">
                 {visiveis} na página inicial
@@ -262,7 +270,10 @@ export default function GestaoAvaliacoes() {
 
           <div className="flex flex-wrap items-center gap-4">
             {notificacao && (
-              <Notificacao mensagem={notificacao} onFechar={() => setNotificacao(null)} />
+              <Notificacao
+                mensagem={notificacao}
+                onFechar={() => setNotificacao(null)}
+              />
             )}
             <button
               type="button"
@@ -278,19 +289,23 @@ export default function GestaoAvaliacoes() {
         <div className="mt-8">
           <section className="min-w-0 rounded-2xl border border-[#dde2ea] bg-white p-5 shadow-sm">
             {carregando ? (
-              <p className="text-sm text-cinza-base">Carregando avaliações...</p>
+              <p className="text-sm text-cinza-base">
+                Carregando avaliações...
+              </p>
             ) : (
               <div className="max-h-[calc(100dvh-15rem)] space-y-3 overflow-y-auto pr-1">
                 {avaliacoes.length === 0 ? (
-                  <p className="text-sm text-cinza-base">Nenhuma avaliação cadastrada.</p>
+                  <p className="text-sm text-cinza-base">
+                    Nenhuma avaliação cadastrada.
+                  </p>
                 ) : (
                   avaliacoes.map((avaliacao) => (
                     <article
                       key={avaliacao.id}
                       className={`rounded-2xl border p-4 transition ${
                         avaliacao.ativo
-                          ? 'border-[#d8dee8] bg-white'
-                          : 'border-[#e4e7ee] bg-[#f7f8fb]'
+                          ? "border-[#d8dee8] bg-white"
+                          : "border-[#e4e7ee] bg-[#f7f8fb]"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -316,12 +331,16 @@ export default function GestaoAvaliacoes() {
                           disabled={alterandoId === avaliacao.id}
                           className="inline-flex items-center gap-1 rounded-lg border border-[#d8dee8] px-3 py-2 text-[10px] font-black uppercase text-preto-v1 disabled:opacity-60"
                         >
-                          {avaliacao.ativo ? <EyeOff size={12} /> : <Eye size={12} />}
+                          {avaliacao.ativo ? (
+                            <EyeOff size={12} />
+                          ) : (
+                            <Eye size={12} />
+                          )}
                           {alterandoId === avaliacao.id
-                            ? 'Alterando...'
+                            ? "Alterando..."
                             : avaliacao.ativo
-                              ? 'Desativar'
-                              : 'Ativar'}
+                              ? "Desativar"
+                              : "Ativar"}
                         </button>
                         <button
                           type="button"
@@ -338,7 +357,9 @@ export default function GestaoAvaliacoes() {
                           className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-[10px] font-black uppercase text-red-600 disabled:opacity-60"
                         >
                           <Trash2 size={12} />
-                          {excluindoId === avaliacao.id ? 'Excluindo...' : 'Excluir'}
+                          {excluindoId === avaliacao.id
+                            ? "Excluindo..."
+                            : "Excluir"}
                         </button>
                       </div>
                     </article>
@@ -365,7 +386,11 @@ export default function GestaoAvaliacoes() {
             <button
               type="button"
               onClick={fecharModalCadastro}
-              aria-label={editando ? 'Fechar edição de avaliação' : 'Fechar cadastro de avaliação'}
+              aria-label={
+                editando
+                  ? "Fechar edição de avaliação"
+                  : "Fechar cadastro de avaliação"
+              }
               className="absolute right-3 top-3 text-cinza-base transition-colors hover:text-preto-v1"
             >
               <X className="size-5" strokeWidth={2} />
@@ -375,7 +400,7 @@ export default function GestaoAvaliacoes() {
               id="modal-cadastro-avaliacao-titulo"
               className="font-barlow-condensed text-2xl font-black uppercase text-preto-v1"
             >
-              {editando ? 'Editar avaliação' : 'Cadastrar avaliação'}
+              {editando ? "Editar avaliação" : "Cadastrar avaliação"}
             </h2>
 
             <form className="mt-5 grid gap-4" onSubmit={salvar} noValidate>
@@ -388,11 +413,11 @@ export default function GestaoAvaliacoes() {
                   <input
                     value={formulario.nomeCliente}
                     onChange={(event) => {
-                      limparAvisos()
+                      limparAvisos();
                       setFormulario((atual) => ({
                         ...atual,
                         nomeCliente: sanitizarNome(event.target.value),
-                      }))
+                      }));
                     }}
                     maxLength={MAX_NOME}
                     className="h-11 w-full bg-transparent outline-none"
@@ -404,18 +429,24 @@ export default function GestaoAvaliacoes() {
               <label className="grid gap-1.5">
                 <span className="flex items-center justify-between text-xs font-black uppercase tracking-[0.14em] text-cinza-base">
                   Texto do feedback
-                  <span className={formulario.descricao.length >= MAX_FEEDBACK ? 'text-red-600' : ''}>
+                  <span
+                    className={
+                      formulario.descricao.length >= MAX_FEEDBACK
+                        ? "text-red-600"
+                        : ""
+                    }
+                  >
                     {formulario.descricao.length}/{MAX_FEEDBACK}
                   </span>
                 </span>
                 <textarea
                   value={formulario.descricao}
                   onChange={(event) => {
-                    limparAvisos()
+                    limparAvisos();
                     setFormulario((atual) => ({
                       ...atual,
                       descricao: event.target.value.slice(0, MAX_FEEDBACK),
-                    }))
+                    }));
                   }}
                   maxLength={MAX_FEEDBACK}
                   className="min-h-28 rounded-xl border border-[#d8dee8] bg-white px-3 py-3 outline-none"
@@ -428,17 +459,21 @@ export default function GestaoAvaliacoes() {
                   Nota (de {NOTA_MINIMA} a {NOTA_MAXIMA} estrelas)
                 </span>
                 <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-1" role="radiogroup" aria-label="Nota da avaliação">
+                  <div
+                    className="flex items-center gap-1"
+                    role="radiogroup"
+                    aria-label="Nota da avaliação"
+                  >
                     {Array.from({ length: NOTA_MAXIMA }, (_, indice) => {
-                      const valor = indice + 1
-                      const preenchida = valor <= formulario.estrelas
+                      const valor = indice + 1;
+                      const preenchida = valor <= formulario.estrelas;
                       return (
                         <button
                           key={valor}
                           type="button"
                           role="radio"
                           aria-checked={valor === formulario.estrelas}
-                          aria-label={`${valor} ${valor === 1 ? 'estrela' : 'estrelas'}`}
+                          aria-label={`${valor} ${valor === 1 ? "estrela" : "estrelas"}`}
                           onClick={() => definirNota(valor)}
                           className="rounded-md p-1 transition hover:scale-110"
                         >
@@ -446,11 +481,13 @@ export default function GestaoAvaliacoes() {
                             size={28}
                             strokeWidth={1.75}
                             className={
-                              preenchida ? 'fill-amarelo text-amarelo' : 'text-[#c7cdd8]'
+                              preenchida
+                                ? "fill-amarelo text-amarelo"
+                                : "text-[#c7cdd8]"
                             }
                           />
                         </button>
-                      )
+                      );
                     })}
                   </div>
 
@@ -470,7 +507,9 @@ export default function GestaoAvaliacoes() {
                 </div>
               </div>
 
-              {erro && <p className="text-sm font-semibold text-red-600">{erro}</p>}
+              {erro && (
+                <p className="text-sm font-semibold text-red-600">{erro}</p>
+              )}
 
               <div className="flex items-center gap-3">
                 <button
@@ -484,10 +523,10 @@ export default function GestaoAvaliacoes() {
                     <Save size={16} />
                   )}
                   {salvando
-                    ? 'Salvando...'
+                    ? "Salvando..."
                     : editando
-                      ? 'Salvar edição'
-                      : 'Cadastrar avaliação'}
+                      ? "Salvar edição"
+                      : "Cadastrar avaliação"}
                 </button>
                 <button
                   type="button"
@@ -522,8 +561,8 @@ export default function GestaoAvaliacoes() {
               Tem certeza que deseja excluir esta avaliação?
             </p>
             <p className="mt-2 font-barlow text-sm text-preto-v1">
-              O depoimento de &quot;{avaliacaoParaExcluir.nome_cliente}&quot; será removido
-              permanentemente.
+              O depoimento de &quot;{avaliacaoParaExcluir.nome_cliente}&quot;
+              será removido permanentemente.
             </p>
 
             <div className="mt-8 flex flex-col gap-2">
@@ -533,7 +572,9 @@ export default function GestaoAvaliacoes() {
                 disabled={excluindoId === avaliacaoParaExcluir.id}
                 className="w-full rounded-md bg-red-600 py-2 font-barlow text-base font-semibold text-branco transition-colors hover:bg-red-400 disabled:opacity-60"
               >
-                {excluindoId === avaliacaoParaExcluir.id ? 'Excluindo...' : 'Sim, excluir avaliação'}
+                {excluindoId === avaliacaoParaExcluir.id
+                  ? "Excluindo..."
+                  : "Sim, excluir avaliação"}
               </button>
               <button
                 type="button"
@@ -548,48 +589,55 @@ export default function GestaoAvaliacoes() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function Estrelas({ nota }: { nota: number }) {
   return (
-    <div className="mt-1 flex items-center gap-0.5" aria-label={`Nota ${nota} de ${NOTA_MAXIMA}`}>
+    <div
+      className="mt-1 flex items-center gap-0.5"
+      aria-label={`Nota ${nota} de ${NOTA_MAXIMA}`}
+    >
       {Array.from({ length: NOTA_MAXIMA }, (_, indice) => (
         <Star
           key={indice}
           size={16}
           strokeWidth={1.75}
-          className={indice < nota ? 'fill-amarelo text-amarelo' : 'text-[#c7cdd8]'}
+          className={
+            indice < nota ? "fill-amarelo text-amarelo" : "text-[#c7cdd8]"
+          }
           aria-hidden
         />
       ))}
     </div>
-  )
+  );
 }
 
 function BadgeStatus({ ativo }: { ativo: boolean }) {
   return (
     <span
       className={`inline-flex rounded-full px-3 py-1 text-[9px] font-black uppercase ${
-        ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-[#e4e7ee] text-cinza-base'
+        ativo
+          ? "bg-emerald-100 text-emerald-700"
+          : "bg-[#e4e7ee] text-cinza-base"
       }`}
     >
-      {ativo ? 'Visível no site' : 'Oculta'}
+      {ativo ? "Visível no site" : "Oculta"}
     </span>
-  )
+  );
 }
 
 function Notificacao({
   mensagem,
   onFechar,
 }: {
-  mensagem: string
-  onFechar: () => void
+  mensagem: string;
+  onFechar: () => void;
 }) {
   useEffect(() => {
-    const timer = window.setTimeout(onFechar, 2500)
-    return () => window.clearTimeout(timer)
-  }, [mensagem, onFechar])
+    const timer = window.setTimeout(onFechar, 2500);
+    return () => window.clearTimeout(timer);
+  }, [mensagem, onFechar]);
 
   return (
     <div
@@ -597,12 +645,17 @@ function Notificacao({
       role="status"
       aria-live="polite"
     >
-      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 sm:h-6 sm:w-6" aria-hidden />
+      <CheckCircle2
+        className="h-5 w-5 shrink-0 text-emerald-600 sm:h-6 sm:w-6"
+        aria-hidden
+      />
       <span className="whitespace-nowrap">{mensagem}</span>
     </div>
-  )
+  );
 }
 
 function mensagemErro(error: unknown) {
-  return error instanceof Error ? error.message : 'Não foi possível concluir a operação.'
+  return error instanceof Error
+    ? error.message
+    : "Não foi possível concluir a operação.";
 }
