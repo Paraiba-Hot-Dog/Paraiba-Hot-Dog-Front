@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react'
-import { ArrowDown, ArrowUp, ExternalLink, ImagePlus, Info, Move, Save, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ExternalLink, FileVideo, Info, Move, Save, Trash2 } from 'lucide-react'
 import BarraDeNavegacaoAdmin, {
   CLASSE_OFFSET_BARRA_ADMIN,
 } from '../../componentes/administrador/BarraDeNavegacaoAdmin'
@@ -8,6 +8,7 @@ import {
   atualizarImagemSobreNosApi,
   criarImagemSobreNosApi,
   excluirImagemSobreNosApi,
+  ehVideoSobreNos,
   listarImagensSobreNosApi,
   resolverImagemSobreNosApi,
   type SobreNosImagemApi,
@@ -28,6 +29,10 @@ type ImagemEdicao = SobreNosImagemApi & {
 
 const classeFonteBotaoAcao =
   'inline-flex h-9 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 font-barlow text-xs font-semibold uppercase leading-none text-preto-v1'
+
+const TIPOS_IMAGEM_ACEITOS = ['image/jpeg', 'image/png', 'image/webp']
+const TAMANHO_MAXIMO_IMAGEM = 5 * 1024 * 1024
+const TAMANHO_MAXIMO_VIDEO = 10 * 1024 * 1024
 
 export default function EdicaoSobreNos() {
   const { hasRole } = useAuth()
@@ -177,6 +182,21 @@ export default function EdicaoSobreNos() {
     const arquivo = evento.target.files?.[0]
     if (!arquivo) return
 
+    const ehVideo = arquivo.type === 'video/mp4'
+    const ehImagem = TIPOS_IMAGEM_ACEITOS.includes(arquivo.type)
+    if (!ehImagem && !ehVideo) {
+      setErroImagens('Escolha uma imagem JPG, PNG ou WebP, ou um vídeo MP4.')
+      evento.target.value = ''
+      return
+    }
+
+    const limite = ehVideo ? TAMANHO_MAXIMO_VIDEO : TAMANHO_MAXIMO_IMAGEM
+    if (arquivo.size > limite) {
+      setErroImagens(`O ${ehVideo ? 'vídeo' : 'arquivo de imagem'} deve ter no máximo ${limite / 1024 / 1024} MB.`)
+      evento.target.value = ''
+      return
+    }
+
     if (preview) URL.revokeObjectURL(preview)
     setArquivoSelecionado(arquivo)
     setPreview(URL.createObjectURL(arquivo))
@@ -192,7 +212,7 @@ export default function EdicaoSobreNos() {
 
   function adicionarImagem() {
     if (!arquivoSelecionado || !preview) {
-      setErroImagens('Selecione uma imagem para adicionar.')
+      setErroImagens('Selecione uma imagem ou vídeo para adicionar.')
       return
     }
 
@@ -252,13 +272,13 @@ export default function EdicaoSobreNos() {
 
       <main className="mx-auto w-full max-w-5xl px-4 pb-8 sm:px-6 lg:px-8">
         <form id="form-sobre-nos" onSubmit={salvarAlteracoes}>
-          <div className="sticky top-16 z-40 -mx-4 mb-8 border-b border-[#d8dee7] bg-[#f4f6fb]/95 px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <div className="-mx-4 mb-8 border-b border-[#d8dee7] bg-[#f4f6fb]/95 px-4 py-4 backdrop-blur-sm sm:sticky sm:top-16 sm:z-40 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amarelo/15">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amarelo/15">
                   <Info size={22} strokeWidth={1.75} aria-hidden />
                 </span>
-                <div>
+                <div className="min-w-0">
                   <h1 className="font-barlow-condensed text-2xl font-bold uppercase sm:text-3xl">
                     Edição de Sobre Nós
                   </h1>
@@ -372,22 +392,22 @@ export default function EdicaoSobreNos() {
 
           <section className="mt-6 rounded-2xl border border-[#dde2ea] bg-white p-5 shadow-sm sm:p-6">
             <h2 className="font-barlow-condensed text-2xl font-black uppercase text-preto-v1">
-              Adicionar imagem
+              Adicionar mídia
             </h2>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-              <label className="grid gap-1.5">
+              <label className="grid min-w-0 gap-1.5">
                 <span className="text-xs font-black uppercase tracking-[0.14em] text-cinza-base">
-                  Arquivo de imagem
+                  Imagem ou vídeo
                 </span>
-                <div className="flex items-center gap-2 rounded-xl border border-dashed border-[#d8dee8] bg-[#f8fafc] px-3 py-3">
-                  <ImagePlus size={16} className="text-cinza-base" />
+                <div className="flex min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-dashed border-[#d8dee8] bg-[#f8fafc] px-3 py-3">
+                  <FileVideo size={16} className="shrink-0 text-cinza-base" />
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,video/mp4,.jpg,.jpeg,.png,.webp,.mp4"
                     onChange={escolherArquivo}
                     disabled={!podeEditarComoAdmin || salvando}
-                    className="text-sm"
+                    className="min-w-0 w-full max-w-full text-sm"
                   />
                 </div>
               </label>
@@ -398,9 +418,13 @@ export default function EdicaoSobreNos() {
                 disabled={!podeEditarComoAdmin || salvando || !arquivoSelecionado}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#d8dee8] bg-white px-5 font-barlow-condensed text-sm font-black uppercase text-preto-v1 shadow-sm transition hover:border-amarelo hover:bg-amarelo/10 disabled:opacity-60"
               >
-                <ImagePlus size={16} />
-                Adicionar imagem
+                <FileVideo size={16} />
+                Adicionar mídia
               </button>
+
+              <p className="font-barlow text-xs leading-5 text-cinza-base sm:col-span-2">
+                Imagem recomendada: 1200 × 675 px (16:9), JPG, PNG ou WebP, até 5 MB. Vídeo: MP4, até 10 MB.
+              </p>
             </div>
 
             {preview && (
@@ -408,28 +432,40 @@ export default function EdicaoSobreNos() {
                 <div
                   role="button"
                   tabIndex={0}
-                  aria-label="Clique para escolher o enquadramento da imagem"
-                  onClick={(evento) => setPosicaoSelecionada(calcularPosicaoClique(evento))}
-                  className="relative h-56 w-full cursor-crosshair overflow-hidden rounded-2xl border border-[#d8dee8] bg-[#f8fafc]"
+                  aria-label={arquivoSelecionado?.type === 'video/mp4' ? 'Prévia do vídeo' : 'Clique para escolher o enquadramento da imagem'}
+                  onClick={(evento) => {
+                    if (arquivoSelecionado?.type !== 'video/mp4') {
+                      setPosicaoSelecionada(calcularPosicaoClique(evento))
+                    }
+                  }}
+                  className={`relative mx-auto aspect-video w-full max-w-[1200px] overflow-hidden rounded-2xl border border-[#d8dee8] bg-black ${arquivoSelecionado?.type === 'video/mp4' ? '' : 'cursor-crosshair'}`}
                 >
-                  <img
-                    src={preview}
-                    alt="Prévia da imagem selecionada"
-                    className="h-full w-full object-cover"
-                    style={{ objectPosition: posicaoSelecionada }}
-                  />
-                  <div
-                    className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amarelo bg-preto-v1/60"
-                    style={{
-                      left: pontoFoco(posicaoSelecionada).x + '%',
-                      top: pontoFoco(posicaoSelecionada).y + '%',
-                    }}
-                  />
+                  {arquivoSelecionado?.type === 'video/mp4' ? (
+                    <video src={preview} controls muted playsInline className="h-full w-full object-contain" />
+                  ) : (
+                    <>
+                      <img
+                        src={preview}
+                        alt="Prévia da imagem selecionada"
+                        className="h-full w-full object-cover"
+                        style={{ objectPosition: posicaoSelecionada }}
+                      />
+                      <div
+                        className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amarelo bg-preto-v1/60"
+                        style={{
+                          left: pontoFoco(posicaoSelecionada).x + '%',
+                          top: pontoFoco(posicaoSelecionada).y + '%',
+                        }}
+                      />
+                    </>
+                  )}
                 </div>
-                <p className="mt-1.5 flex items-center gap-1 text-[10px] text-cinza-base">
-                  <Move size={11} />
-                  Clique na prévia para escolher o enquadramento antes de adicionar
-                </p>
+                {arquivoSelecionado?.type !== 'video/mp4' && (
+                  <p className="mt-1.5 flex items-center gap-1 text-[10px] text-cinza-base">
+                    <Move size={11} />
+                    Clique na prévia para escolher o enquadramento antes de adicionar
+                  </p>
+                )}
               </div>
             )}
 
@@ -437,23 +473,24 @@ export default function EdicaoSobreNos() {
           </section>
 
           <section className="mt-6 rounded-2xl border border-[#dde2ea] bg-white p-5 shadow-sm sm:p-6">
-            <div className="flex items-center justify-between">
-              <h2 className="font-barlow-condensed text-2xl font-black uppercase text-preto-v1">
-                Imagens do carrossel
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="min-w-0 font-barlow-condensed text-2xl font-black uppercase text-preto-v1">
+                Mídias do carrossel
               </h2>
-              <span className="rounded-full bg-[#f2f5fa] px-3 py-1 text-[10px] font-black uppercase text-cinza-base">
-                {imagensOrdenadas.length} imagens
+              <span className="shrink-0 rounded-full bg-[#f2f5fa] px-3 py-1 text-[10px] font-black uppercase text-cinza-base">
+                {imagensOrdenadas.length} mídias
               </span>
             </div>
 
             {carregandoImagens ? (
-              <p className="mt-6 text-sm text-cinza-base">Carregando imagens...</p>
+              <p className="mt-6 text-sm text-cinza-base">Carregando mídias...</p>
             ) : imagensOrdenadas.length === 0 ? (
-              <p className="mt-6 text-sm text-cinza-base">Nenhuma imagem cadastrada ainda.</p>
+              <p className="mt-6 text-sm text-cinza-base">Nenhuma mídia cadastrada ainda.</p>
             ) : (
               <div className="mt-5 space-y-3">
                 {imagensOrdenadas.map((imagem, indice) => {
                   const foco = pontoFoco(imagem.posicao)
+                  const ehVideo = imagem.arquivo?.type === 'video/mp4' || ehVideoSobreNos(imagem.imagem_url)
                   return (
                     <article
                       key={imagem.id}
@@ -463,36 +500,51 @@ export default function EdicaoSobreNos() {
                         <div
                           role="button"
                           tabIndex={0}
-                          aria-label="Clique para ajustar o enquadramento da imagem"
-                          onClick={(evento) => ajustarPosicao(imagem, evento)}
-                          className="relative h-40 w-full cursor-crosshair overflow-hidden rounded-xl border border-[#d8dee8] sm:h-28 sm:w-40"
+                          aria-label={ehVideo ? 'Prévia do vídeo' : 'Clique para ajustar o enquadramento da imagem'}
+                          onClick={(evento) => {
+                            if (!ehVideo) ajustarPosicao(imagem, evento)
+                          }}
+                          className={`relative aspect-video w-full overflow-hidden rounded-xl border border-[#d8dee8] bg-black sm:w-48 ${ehVideo ? '' : 'cursor-crosshair'}`}
                         >
-                          <img
-                            src={imagem.previewLocal ?? resolverImagemSobreNosApi(imagem.imagem_url) ?? ''}
-                            alt={`Imagem ${indice + 1} do carrossel`}
-                            className="h-full w-full object-cover"
-                            style={{ objectPosition: imagem.posicao || 'center center' }}
-                          />
-                          <div
-                            className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amarelo bg-preto-v1/60"
-                            style={{ left: `${foco.x}%`, top: `${foco.y}%` }}
-                          />
+                          {ehVideo ? (
+                            <video
+                              src={imagem.previewLocal ?? resolverImagemSobreNosApi(imagem.imagem_url) ?? ''}
+                              muted
+                              playsInline
+                              className="h-full w-full object-contain"
+                            />
+                          ) : (
+                            <>
+                              <img
+                                src={imagem.previewLocal ?? resolverImagemSobreNosApi(imagem.imagem_url) ?? ''}
+                                alt={`Imagem ${indice + 1} do carrossel`}
+                                className="h-full w-full object-cover"
+                                style={{ objectPosition: imagem.posicao || 'center center' }}
+                              />
+                              <div
+                                className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amarelo bg-preto-v1/60"
+                                style={{ left: `${foco.x}%`, top: `${foco.y}%` }}
+                              />
+                            </>
+                          )}
                         </div>
-                        <p className="mt-1.5 flex items-center gap-1 text-[10px] text-cinza-base">
-                          <Move size={11} />
-                          Clique para ajustar o enquadramento
-                        </p>
+                        {!ehVideo && (
+                          <p className="mt-1.5 flex items-center gap-1 text-[10px] text-cinza-base">
+                            <Move size={11} />
+                            Clique para ajustar o enquadramento
+                          </p>
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cinza-base">
                           Posição {indice + 1}
                         </p>
-                        <div className="mt-2 flex items-center gap-2">
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             onClick={() => mover(imagem, -1)}
                             disabled={!podeEditarComoAdmin || salvando || indice === 0}
-                            className="inline-flex items-center gap-1 rounded-lg border border-[#d8dee8] px-3 py-2 text-[10px] font-black uppercase text-preto-v1 disabled:opacity-40"
+                            className="inline-flex min-h-10 flex-1 basis-[6.5rem] items-center justify-center gap-1 rounded-lg border border-[#d8dee8] px-3 py-2 text-[10px] font-black uppercase text-preto-v1 disabled:opacity-40 sm:flex-none sm:basis-auto"
                           >
                             <ArrowUp size={12} />
                             Subir
@@ -505,7 +557,7 @@ export default function EdicaoSobreNos() {
                               salvando ||
                               indice === imagensOrdenadas.length - 1
                             }
-                            className="inline-flex items-center gap-1 rounded-lg border border-[#d8dee8] px-3 py-2 text-[10px] font-black uppercase text-preto-v1 disabled:opacity-40"
+                            className="inline-flex min-h-10 flex-1 basis-[6.5rem] items-center justify-center gap-1 rounded-lg border border-[#d8dee8] px-3 py-2 text-[10px] font-black uppercase text-preto-v1 disabled:opacity-40 sm:flex-none sm:basis-auto"
                           >
                             <ArrowDown size={12} />
                             Descer
@@ -514,7 +566,7 @@ export default function EdicaoSobreNos() {
                             type="button"
                             onClick={() => setImagemParaExcluir(imagem)}
                             disabled={!podeEditarComoAdmin || salvando}
-                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-[10px] font-black uppercase text-red-600 disabled:opacity-60"
+                            className="inline-flex min-h-10 flex-1 basis-[6.5rem] items-center justify-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-[10px] font-black uppercase text-red-600 disabled:opacity-60 sm:flex-none sm:basis-auto"
                           >
                             <Trash2 size={12} />
                             Excluir

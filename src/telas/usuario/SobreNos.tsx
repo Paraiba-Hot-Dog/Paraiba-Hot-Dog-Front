@@ -7,7 +7,7 @@ import imgCarrossel3 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 
 import imgCarrossel4 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 11.10.03.jpeg'
 import { resolverUrlImagem } from '../../servicos/api'
 import { listarPostsBlogApi, resolverImagemBlogApi, type BlogPostApi, type TipoBlogApi } from '../../servicos/blogApi'
-import { listarImagensSobreNosApi, resolverImagemSobreNosApi } from '../../servicos/sobreNosApi'
+import { ehVideoSobreNos, listarImagensSobreNosApi, resolverImagemSobreNosApi } from '../../servicos/sobreNosApi'
 import {
   ESTATISTICAS_PADRAO_SOBRE_NOS,
   obterSobreNosApi,
@@ -18,7 +18,7 @@ import {
 const smashMandacaru = resolverUrlImagem('/uploads/produtos/smash-mandacaru.jpeg') ?? ''
 const dogArretado = resolverUrlImagem('/uploads/produtos/dog-arretado.jpeg') ?? ''
 
-type HistoriaImagem = { imagem: string; posicao: string }
+type HistoriaImagem = { imagem: string; posicao: string; video?: boolean }
 
 const historiasFallback: HistoriaImagem[] = [
   { imagem: imgCarrossel4, posicao: 'center center' },
@@ -94,6 +94,7 @@ export default function SobreNos() {
           imagensApi.map((item) => ({
             imagem: resolverImagemSobreNosApi(item.imagem_url) ?? '',
             posicao: item.posicao || 'center center',
+            video: ehVideoSobreNos(item.imagem_url),
           })),
         )
         setImagemAtiva(0)
@@ -201,23 +202,39 @@ export default function SobreNos() {
           <div className="mt-8 overflow-hidden rounded-[24px] border border-branco/10 bg-[#111] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
             <div className="relative isolate overflow-hidden bg-[#090909] px-3 py-3 sm:px-4 sm:py-4">
               <div className="absolute inset-0">
-                <img
-                  src={historiaAtual.imagem}
-                  alt=""
-                  aria-hidden
-                  className="h-full w-full scale-105 object-cover opacity-20 blur-2xl"
-                />
+                {!historiaAtual.video && (
+                  <img
+                    src={historiaAtual.imagem}
+                    alt=""
+                    aria-hidden
+                    className="h-full w-full scale-105 object-cover opacity-20 blur-2xl"
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/15 to-black/60" />
               </div>
 
               <div className="relative">
                 <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black/25 shadow-[0_18px_40px_rgba(0,0,0,0.3)]">
-                  <img
-                    src={historiaAtual.imagem}
-                    alt="História da Paraíba Hot Dog"
-                    className="h-[230px] w-full object-cover sm:h-[330px] lg:h-[390px]"
-                    style={{ objectPosition: historiaAtual.posicao }}
-                  />
+                  {historiaAtual.video ? (
+                    <video
+                      key={historiaAtual.imagem}
+                      src={historiaAtual.imagem}
+                      aria-label="Vídeo da história da Paraíba Hot Dog"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      controls
+                      className="aspect-video w-full bg-black object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={historiaAtual.imagem}
+                      alt="História da Paraíba Hot Dog"
+                      className="aspect-video w-full object-cover"
+                      style={{ objectPosition: historiaAtual.posicao }}
+                    />
+                  )}
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-transparent" />
                 </div>
 

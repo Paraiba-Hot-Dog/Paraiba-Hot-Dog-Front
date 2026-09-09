@@ -57,3 +57,8 @@ export function resolverImagemSobreNosApi(caminho: string | null) {
   if (/^https?:\/\//i.test(caminho)) return caminho
   return buildApiUrl(caminho)
 }
+
+export function ehVideoSobreNos(caminho: string | null | undefined) {
+  if (!caminho) return false
+  return /\.mp4(?:$|[?#])/i.test(caminho)
+}
