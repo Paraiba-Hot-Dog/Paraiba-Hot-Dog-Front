@@ -86,6 +86,8 @@ export default function App() {
 
   if (pathname === '/admin/configuracoes/avaliacoes') {
     return <GestaoAvaliacoes />
+  }
+
   if (pathname === '/admin/configuracoes/duvidas-frequentes') {
     return <GestaoDuvidasFrequentes />
   }
