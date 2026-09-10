@@ -4,6 +4,7 @@ import Painel from './telas/administrador/Painel'
 import GestaoUnidades from './telas/administrador/GestaoUnidades'
 import GestaoUsuarios from './telas/administrador/GestaoUsuarios'
 import GestaoBlog from './telas/administrador/GestaoBlog'
+import GestaoAvaliacoes from './telas/administrador/GestaoAvaliacoes'
 import GestaoDuvidasFrequentes from './telas/administrador/GestaoDuvidasFrequentes'
 import { useAuth } from './contextos/useAuth'
 import Cardapio from './telas/usuario/Cardapio'
@@ -83,6 +84,10 @@ export default function App() {
     return <GestaoBlog />
   }
 
+  if (pathname === '/admin/configuracoes/avaliacoes') {
+    return <GestaoAvaliacoes />
+  }
+
   if (pathname === '/admin/configuracoes/duvidas-frequentes') {
     return <GestaoDuvidasFrequentes />
   }
@@ -146,6 +151,7 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin/configuracoes/usuarios') return `Usuários | ${baseTitle}`
   if (pathname === '/admin/configuracoes/unidades') return `Unidades | ${baseTitle}`
   if (pathname === '/admin/configuracoes/blog') return `Blog | ${baseTitle}`
+  if (pathname === '/admin/configuracoes/avaliacoes') return `Avaliações | ${baseTitle}`
   if (pathname === '/admin/configuracoes/duvidas-frequentes') {
     return `Dúvidas Frequentes | ${baseTitle}`
   }
