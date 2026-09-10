@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react'
 import BarraDeNavegacao from '../../componentes/usuario/BarraDeNavegacaoUsuario'
 import Rodape from '../../componentes/usuario/Rodape'
@@ -7,16 +7,24 @@ import imgCarrossel3 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 
 import imgCarrossel4 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 11.10.03.jpeg'
 import { resolverUrlImagem } from '../../servicos/api'
 import { listarPostsBlogApi, resolverImagemBlogApi, type BlogPostApi, type TipoBlogApi } from '../../servicos/blogApi'
+import { ehVideoSobreNos, listarImagensSobreNosApi, resolverImagemSobreNosApi } from '../../servicos/sobreNosApi'
+import {
+  ESTATISTICAS_PADRAO_SOBRE_NOS,
+  obterSobreNosApi,
+  TEXTO_PADRAO_SOBRE_NOS,
+  type EstatisticaSobreNosApi,
+} from '../../servicos/institucionalApi'
 
 const smashMandacaru = resolverUrlImagem('/uploads/produtos/smash-mandacaru.jpeg') ?? ''
 const dogArretado = resolverUrlImagem('/uploads/produtos/dog-arretado.jpeg') ?? ''
 
+type HistoriaImagem = { imagem: string; posicao: string; video?: boolean }
 
-const historias = [
+const historiasFallback: HistoriaImagem[] = [
   { imagem: imgCarrossel4, posicao: 'center center' },
   { imagem: imgCarrossel2, posicao: 'center top' },
   { imagem: imgCarrossel3, posicao: 'center center' },
-] as const
+]
 
 const noticiasFallback = [
   {
@@ -64,19 +72,43 @@ export default function SobreNos() {
   const [filtroExibido, setFiltroExibido] = useState<'todos' | TipoBlogApi>('todos')
   const [animandoFiltro, setAnimandoFiltro] = useState(false)
   const [carregandoPosts, setCarregandoPosts] = useState(true)
+  const [historias, setHistorias] = useState<HistoriaImagem[]>(historiasFallback)
+  const [textoSobreNos, setTextoSobreNos] = useState(TEXTO_PADRAO_SOBRE_NOS)
+  const [estatisticas, setEstatisticas] = useState<EstatisticaSobreNosApi[]>(
+    ESTATISTICAS_PADRAO_SOBRE_NOS.map((item) => ({ ...item })),
+  )
   const timersRef = useRef<number[]>([])
 
-  const historiaAtual = historias[imagemAtiva]
+  const historiaAtual = historias[imagemAtiva] ?? historiasFallback[0]
   const depoimento = depoimentos[depoimentoAtivo]
 
-  const estatisticas = useMemo(
-    () => [
-      { valor: '10+', legenda: 'Anos de funcionamento' },
-      { valor: '4,9', legenda: 'Avaliação média' },
-      { valor: '3', legenda: 'Unidades' },
-    ],
-    [],
-  )
+  useEffect(() => {
+    let ativo = true
+
+    async function carregarHistorias() {
+      try {
+        const imagensApi = await listarImagensSobreNosApi()
+        if (!ativo || !imagensApi.length) return
+
+        setHistorias(
+          imagensApi.map((item) => ({
+            imagem: resolverImagemSobreNosApi(item.imagem_url) ?? '',
+            posicao: item.posicao || 'center center',
+            video: ehVideoSobreNos(item.imagem_url),
+          })),
+        )
+        setImagemAtiva(0)
+      } catch {
+        if (ativo) setHistorias(historiasFallback)
+      }
+    }
+
+    carregarHistorias()
+
+    return () => {
+      ativo = false
+    }
+  }, [])
 
   useEffect(() => {
     let ativo = true
@@ -103,6 +135,25 @@ export default function SobreNos() {
     }
 
     carregarPosts()
+
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let ativo = true
+    obterSobreNosApi()
+      .then((conteudo) => {
+        if (!ativo) return
+        setTextoSobreNos(conteudo.texto)
+        setEstatisticas(conteudo.estatisticas)
+      })
+      .catch(() => {
+        if (!ativo) return
+        setTextoSobreNos(TEXTO_PADRAO_SOBRE_NOS)
+        setEstatisticas(ESTATISTICAS_PADRAO_SOBRE_NOS.map((item) => ({ ...item })))
+      })
 
     return () => {
       ativo = false
@@ -151,23 +202,39 @@ export default function SobreNos() {
           <div className="mt-8 overflow-hidden rounded-[24px] border border-branco/10 bg-[#111] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
             <div className="relative isolate overflow-hidden bg-[#090909] px-3 py-3 sm:px-4 sm:py-4">
               <div className="absolute inset-0">
-                <img
-                  src={historiaAtual.imagem}
-                  alt=""
-                  aria-hidden
-                  className="h-full w-full scale-105 object-cover opacity-20 blur-2xl"
-                />
+                {!historiaAtual.video && (
+                  <img
+                    src={historiaAtual.imagem}
+                    alt=""
+                    aria-hidden
+                    className="h-full w-full scale-105 object-cover opacity-20 blur-2xl"
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/15 to-black/60" />
               </div>
 
               <div className="relative">
                 <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black/25 shadow-[0_18px_40px_rgba(0,0,0,0.3)]">
-                  <img
-                    src={historiaAtual.imagem}
-                    alt="História da Paraíba Hot Dog"
-                    className="h-[230px] w-full object-cover sm:h-[330px] lg:h-[390px]"
-                    style={{ objectPosition: historiaAtual.posicao }}
-                  />
+                  {historiaAtual.video ? (
+                    <video
+                      key={historiaAtual.imagem}
+                      src={historiaAtual.imagem}
+                      aria-label="Vídeo da história da Paraíba Hot Dog"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      controls
+                      className="aspect-video w-full bg-black object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={historiaAtual.imagem}
+                      alt="História da Paraíba Hot Dog"
+                      className="aspect-video w-full object-cover"
+                      style={{ objectPosition: historiaAtual.posicao }}
+                    />
+                  )}
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-transparent" />
                 </div>
 
@@ -192,15 +259,12 @@ export default function SobreNos() {
 
             <div className="px-4 py-5 sm:px-6 sm:py-7">
               <p className="mx-auto max-w-4xl text-center font-barlow text-sm leading-7 text-branco/80 sm:text-base">
-                Nascemos da paixão pela gastronomia de rua e pelo sabor autêntico da Paraíba.
-                Desde 2015, levamos o melhor hot dog arretado para os brasilenses com qualidade,
-                fartura e tradição. Nossa missão é servir ingredientes frescos, receitas
-                exclusivas e um atendimento que faz você se sentir em casa.
+                {textoSobreNos}
               </p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3 sm:gap-4">
-                {estatisticas.map((item) => (
-                  <article key={item.legenda} className="rounded-2xl bg-[#242424] px-4 py-5 text-center">
+                {estatisticas.map((item, indice) => (
+                  <article key={`${item.legenda}-${indice}`} className="rounded-2xl bg-[#242424] px-4 py-5 text-center">
                     <strong className="block font-barlow-condensed text-4xl font-black text-amarelo">
                       {item.valor}
                     </strong>

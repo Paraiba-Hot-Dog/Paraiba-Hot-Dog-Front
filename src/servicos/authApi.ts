@@ -1,5 +1,18 @@
 import { apiFetch, saveAuthTokens } from './apiFetch'
 
+export class AuthApiError extends Error {
+  readonly status: number
+
+  constructor(
+    message: string,
+    status: number,
+  ) {
+    super(message)
+    this.status = status
+    this.name = 'AuthApiError'
+  }
+}
+
 type LoginResponse = {
   access_token: string
   expires_in?: number
@@ -12,11 +25,20 @@ export async function login(email: string, password: string) {
     auth: false,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email: email.trim(), password }),
   })
 
   if (!response.ok) {
-    throw new Error(`Authentication failed: ${response.status}`)
+    let message = `Authentication failed: ${response.status}`
+
+    try {
+      const body = (await response.json()) as { detail?: string; message?: string }
+      message = body.detail || body.message || message
+    } catch {
+      // Mantem a mensagem baseada no status quando a API nao retorna JSON.
+    }
+
+    throw new AuthApiError(message, response.status)
   }
 
   const tokens = (await response.json()) as LoginResponse

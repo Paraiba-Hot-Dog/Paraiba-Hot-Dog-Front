@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import logoBranca from '../../imagens/logos/logo-branca.png'
-import { login } from '../../servicos/authApi'
+import { AuthApiError, login } from '../../servicos/authApi'
 import { extrairEmailToken } from '../../servicos/authToken'
 import { listarUsuariosApi } from '../../servicos/usuariosApi'
 
@@ -31,7 +31,15 @@ export default function Login() {
       window.location.href = '/'
     } catch (error) {
       console.error('Login error:', error)
-      alert('Credenciais invalidas ou servidor fora do ar. Verifique seus dados e tente novamente.')
+      if (error instanceof AuthApiError && error.status === 401) {
+        alert('Credenciais invalidas. Verifique seus dados e tente novamente.')
+      } else if (error instanceof TypeError) {
+        alert('Servidor fora do ar. Verifique sua conexao e tente novamente.')
+      } else if (error instanceof Error) {
+        alert(error.message)
+      } else {
+        alert('Nao foi possivel entrar. Tente novamente.')
+      }
     } finally {
       setLoading(false)
     }
