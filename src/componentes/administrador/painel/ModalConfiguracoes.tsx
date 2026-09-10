@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import EdicaoBlog from './EdicaoBlog'
 import EdicaoCardapio from './EdicaoCardapio'
+import EdicaoDuvidasFrequentes from './EdicaoDuvidasFrequentes'
 import EdicaoUnidades from './EdicaoUnidades'
 import GestaoUsuarios from './GestaoUsuarios'
 import EdicaoAvaliacao from './EdicaoAvaliacao'
@@ -48,6 +49,7 @@ export default function ModalConfiguracoes({
           <EdicaoUnidades onNavigate={onFechar} />
           <EdicaoCardapio onNavigate={onFechar} />
           <EdicaoBlog onNavigate={onFechar} />
+          <EdicaoDuvidasFrequentes onNavigate={onFechar} />
           <GestaoUsuarios onNavigate={onFechar} />
           <EdicaoAvaliacao onNavigate={onFechar} />
         </div>

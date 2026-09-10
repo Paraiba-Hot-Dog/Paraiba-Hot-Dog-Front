@@ -1,30 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
-
-const faqItems = [
-  {
-    pergunta: 'Quais são os horários de funcionamento?',
-    resposta: 'Funcionamos todos os dias, das 17:00 às 23:00',
-  },
-  {
-    pergunta: 'Vocês fazem delivery?',
-    resposta: 'Sim, fazemos delivery pelo iFood',
-  },
-  {
-    pergunta: 'Tem opções vegetarianas?',
-    resposta:
-      'Sim, contamos com opções vegetarianas deliciosas no nosso cardápio!',
-  },
-  {
-    pergunta: 'Posso personalizar meu hot dog?',
-    resposta:
-      'Sim, você pode personalizar seu hot dog escolhendo os ingredientes que preferir.',
-  },
-  {
-    pergunta: 'Vocês aceitam cartão?',
-    resposta: 'Sim, aceitamos débito e crédito.',
-  },
-] as const
+import { listarDuvidasApi, type DuvidaApi } from '../../../servicos/duvidasApi'
 
 type FaqItemProps = {
   pergunta: string
@@ -66,15 +42,34 @@ function FaqItem({ pergunta, resposta, isOpen, onToggle }: FaqItemProps) {
 }
 
 export default function DuvidasFrequentes() {
-  const [openIndexes, setOpenIndexes] = useState<Set<number>>(() => new Set())
+  const [duvidas, setDuvidas] = useState<DuvidaApi[]>([])
+  const [openIds, setOpenIds] = useState<Set<number>>(() => new Set())
 
-  const toggleItem = (index: number) => {
-    setOpenIndexes((current) => {
+  useEffect(() => {
+    let ativo = true
+
+    listarDuvidasApi()
+      .then((dados) => {
+        if (ativo) setDuvidas(dados)
+      })
+      .catch(() => undefined)
+
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  const toggleItem = (id: number) => {
+    setOpenIds((current) => {
       const next = new Set(current)
-      if (next.has(index)) next.delete(index)
-      else next.add(index)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
+  }
+
+  if (duvidas.length === 0) {
+    return null
   }
 
   return (
@@ -84,13 +79,13 @@ export default function DuvidasFrequentes() {
       </h2>
 
       <div className="mt-6 flex w-full max-w-3xl flex-col gap-2 min-[490px]:mt-8 min-[490px]:gap-2.5">
-        {faqItems.map(({ pergunta, resposta }, index) => (
+        {duvidas.map(({ id, pergunta, resposta }) => (
           <FaqItem
-            key={pergunta}
+            key={id}
             pergunta={pergunta}
             resposta={resposta}
-            isOpen={openIndexes.has(index)}
-            onToggle={() => toggleItem(index)}
+            isOpen={openIds.has(id)}
+            onToggle={() => toggleItem(id)}
           />
         ))}
       </div>
