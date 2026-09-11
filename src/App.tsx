@@ -5,6 +5,8 @@ import GestaoUnidades from './telas/administrador/GestaoUnidades'
 import GestaoUsuarios from './telas/administrador/GestaoUsuarios'
 import GestaoClientes from './telas/administrador/GestaoClientes'
 import GestaoBlog from './telas/administrador/GestaoBlog'
+import GestaoAvaliacoes from './telas/administrador/GestaoAvaliacoes'
+import GestaoDuvidasFrequentes from './telas/administrador/GestaoDuvidasFrequentes'
 import { useAuth } from './contextos/useAuth'
 import Cardapio from './telas/usuario/Cardapio'
 import CartaoFidelidade from './telas/usuario/CartaoFidelidade'
@@ -87,6 +89,14 @@ export default function App() {
     return <GestaoBlog />
   }
 
+  if (pathname === '/admin/configuracoes/avaliacoes') {
+    return <GestaoAvaliacoes />
+  }
+
+  if (pathname === '/admin/configuracoes/duvidas-frequentes') {
+    return <GestaoDuvidasFrequentes />
+  }
+
   if (pathname === '/admin/anotar-pedidos') {
     return <AnotarPedidos />
   }
@@ -147,6 +157,10 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin/configuracoes/clientes') return `Clientes | ${baseTitle}`
   if (pathname === '/admin/configuracoes/unidades') return `Unidades | ${baseTitle}`
   if (pathname === '/admin/configuracoes/blog') return `Blog | ${baseTitle}`
+  if (pathname === '/admin/configuracoes/avaliacoes') return `Avaliações | ${baseTitle}`
+  if (pathname === '/admin/configuracoes/duvidas-frequentes') {
+    return `Dúvidas Frequentes | ${baseTitle}`
+  }
   if (pathname === '/admin/anotar-pedidos') return `Anotar Pedidos | ${baseTitle}`
   if (pathname === '/dashboard' || pathname === '/admin/dashboard') return `Dashboard | ${baseTitle}`
   if (pathname === '/cozinha' || pathname === '/admin/cozinha') return `Cozinha | ${baseTitle}`
