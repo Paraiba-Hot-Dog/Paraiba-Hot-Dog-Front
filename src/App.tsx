@@ -3,6 +3,7 @@ import CardapioAdm from './telas/administrador/CardapioAdm'
 import Painel from './telas/administrador/Painel'
 import GestaoUnidades from './telas/administrador/GestaoUnidades'
 import GestaoUsuarios from './telas/administrador/GestaoUsuarios'
+import GestaoClientes from './telas/administrador/GestaoClientes'
 import GestaoBlog from './telas/administrador/GestaoBlog'
 import GestaoAvaliacoes from './telas/administrador/GestaoAvaliacoes'
 import GestaoDuvidasFrequentes from './telas/administrador/GestaoDuvidasFrequentes'
@@ -74,6 +75,10 @@ export default function App() {
 
   if (pathname === '/admin/configuracoes/usuarios') {
     return <GestaoUsuarios />
+  }
+
+  if (pathname === '/admin/configuracoes/clientes') {
+    return <GestaoClientes />
   }
 
   if (pathname === '/admin/configuracoes/unidades') {
@@ -149,6 +154,7 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin') return `Painel Administrativo | ${baseTitle}`
   if (pathname === '/admin/cardapio') return `Cardápio Admin | ${baseTitle}`
   if (pathname === '/admin/configuracoes/usuarios') return `Usuários | ${baseTitle}`
+  if (pathname === '/admin/configuracoes/clientes') return `Clientes | ${baseTitle}`
   if (pathname === '/admin/configuracoes/unidades') return `Unidades | ${baseTitle}`
   if (pathname === '/admin/configuracoes/blog') return `Blog | ${baseTitle}`
   if (pathname === '/admin/configuracoes/avaliacoes') return `Avaliações | ${baseTitle}`

@@ -4,6 +4,7 @@ import EdicaoCardapio from './EdicaoCardapio'
 import EdicaoDuvidasFrequentes from './EdicaoDuvidasFrequentes'
 import EdicaoUnidades from './EdicaoUnidades'
 import GestaoUsuarios from './GestaoUsuarios'
+import GestaoClientes from './GestaoClientes'
 import EdicaoAvaliacao from './EdicaoAvaliacao'
 
 type ModalConfiguracoesProps = {
@@ -51,6 +52,7 @@ export default function ModalConfiguracoes({
           <EdicaoBlog onNavigate={onFechar} />
           <EdicaoDuvidasFrequentes onNavigate={onFechar} />
           <GestaoUsuarios onNavigate={onFechar} />
+          <GestaoClientes onNavigate={onFechar} />
           <EdicaoAvaliacao onNavigate={onFechar} />
         </div>
       </div>
