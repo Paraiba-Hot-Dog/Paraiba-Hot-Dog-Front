@@ -7,16 +7,27 @@ import imgCarrossel3 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 
 import imgCarrossel4 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 11.10.03.jpeg'
 import { resolverUrlImagem } from '../../servicos/api'
 import { listarPostsBlogApi, resolverImagemBlogApi, type BlogPostApi, type TipoBlogApi } from '../../servicos/blogApi'
+import { listarAvaliacoesApi, NOTA_MAXIMA, type AvaliacaoApi } from '../../servicos/avaliacoesApi'
+import {
+  ehVideoSobreNos,
+  ESTATISTICAS_PADRAO_SOBRE_NOS,
+  listarImagensSobreNosApi,
+  obterSobreNosApi,
+  resolverImagemSobreNosApi,
+  TEXTO_PADRAO_SOBRE_NOS,
+  type EstatisticaSobreNosApi,
+} from '../../servicos/sobreNosApi'
 
 const smashMandacaru = resolverUrlImagem('/uploads/produtos/smash-mandacaru.jpeg') ?? ''
 const dogArretado = resolverUrlImagem('/uploads/produtos/dog-arretado.jpeg') ?? ''
 
+type HistoriaImagem = { imagem: string; posicao: string; video?: boolean }
 
-const historias = [
+const historiasFallback: HistoriaImagem[] = [
   { imagem: imgCarrossel4, posicao: 'center center' },
   { imagem: imgCarrossel2, posicao: 'center top' },
   { imagem: imgCarrossel3, posicao: 'center center' },
-] as const
+]
 
 const noticiasFallback = [
   {
@@ -35,51 +46,98 @@ const noticiasFallback = [
   },
 ]
 
-const depoimentos = [
+type Depoimento = {
+  nome: string
+  texto: string
+  estrelas: number
+}
+
+const depoimentosFallback: Depoimento[] = [
   {
     nome: 'Juliana Costa',
-    cidade: 'Brasília',
     texto:
       'Simplesmente perfeito. O sabor paraibano autêntico que eu procurava. Toda semana estou lá.',
+    estrelas: 5,
   },
   {
     nome: 'Marcos Lima',
-    cidade: 'Taguatinga',
     texto:
       'O combo sai rápido e chega bonito. O atendimento e a história da marca passam muita verdade.',
+    estrelas: 5,
   },
   {
     nome: 'Fernanda Alves',
-    cidade: 'Águas Claras',
     texto:
       'Sempre volto pelo sabor e pela consistência. Os dogs e os acompanhamentos não falham.',
+    estrelas: 5,
   },
 ]
 
 export default function SobreNos() {
+  const [texto, setTexto] = useState(TEXTO_PADRAO_SOBRE_NOS)
+  const [estatisticas, setEstatisticas] = useState<EstatisticaSobreNosApi[]>(
+    ESTATISTICAS_PADRAO_SOBRE_NOS,
+  )
+  const [historias, setHistorias] = useState<HistoriaImagem[]>(historiasFallback)
   const [imagemAtiva, setImagemAtiva] = useState(0)
   const [depoimentoAtivo, setDepoimentoAtivo] = useState(0)
+  const [avaliacoes, setAvaliacoes] = useState<AvaliacaoApi[]>([])
   const [posts, setPosts] = useState<BlogCard[]>([])
   const [filtro, setFiltro] = useState<'todos' | TipoBlogApi>('todos')
   const [filtroExibido, setFiltroExibido] = useState<'todos' | TipoBlogApi>('todos')
   const [animandoFiltro, setAnimandoFiltro] = useState(false)
+  const [animandoDepoimento, setAnimandoDepoimento] = useState(false)
   const [carregandoPosts, setCarregandoPosts] = useState(true)
   const timersRef = useRef<number[]>([])
+  const depoimentoTimersRef = useRef<number[]>([])
 
-  const historiaAtual = historias[imagemAtiva]
-  const depoimento = depoimentos[depoimentoAtivo]
+  const depoimentos = useMemo<Depoimento[]>(() => {
+    if (!avaliacoes.length) return depoimentosFallback
 
-  const estatisticas = useMemo(
-    () => [
-      { valor: '10+', legenda: 'Anos de funcionamento' },
-      { valor: '4,9', legenda: 'Avaliação média' },
-      { valor: '3', legenda: 'Unidades' },
-    ],
-    [],
-  )
+    return avaliacoes.map((avaliacao) => ({
+      nome: avaliacao.nome_cliente,
+      texto: avaliacao.descricao,
+      estrelas: avaliacao.estrelas,
+    }))
+  }, [avaliacoes])
+
+  const historiaAtual = historias[imagemAtiva] ?? historias[0]
+  const indiceDepoimento = depoimentos.length
+    ? depoimentoAtivo % depoimentos.length
+    : 0
+  const depoimento = depoimentos[indiceDepoimento]
 
   useEffect(() => {
     let ativo = true
+
+    async function carregarSobreNos() {
+      try {
+        const dados = await obterSobreNosApi()
+        if (!ativo) return
+        if (dados.texto) setTexto(dados.texto)
+        if (dados.estatisticas?.length) setEstatisticas(dados.estatisticas)
+      } catch {
+        // Mantem dados padrao
+      }
+    }
+
+    async function carregarImagens() {
+      try {
+        const imagensApi = await listarImagensSobreNosApi()
+        if (!ativo || !imagensApi.length) return
+
+        setHistorias(
+          imagensApi.map((item) => ({
+            imagem: resolverImagemSobreNosApi(item.imagem_url) ?? '',
+            posicao: item.posicao || 'center center',
+            video: ehVideoSobreNos(item.imagem_url),
+          })),
+        )
+        setImagemAtiva(0)
+      } catch {
+        // Mantem dados padrao
+      }
+    }
 
     async function carregarPosts() {
       setCarregandoPosts(true)
@@ -102,7 +160,25 @@ export default function SobreNos() {
       }
     }
 
+    carregarSobreNos()
+    carregarImagens()
     carregarPosts()
+
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let ativo = true
+
+    listarAvaliacoesApi(true)
+      .then((dados) => {
+        if (ativo) setAvaliacoes(dados)
+      })
+      .catch(() => {
+        if (ativo) setAvaliacoes([])
+      })
 
     return () => {
       ativo = false
@@ -113,9 +189,27 @@ export default function SobreNos() {
     () => () => {
       timersRef.current.forEach((timer) => window.clearTimeout(timer))
       timersRef.current = []
+      depoimentoTimersRef.current.forEach((timer) => window.clearTimeout(timer))
+      depoimentoTimersRef.current = []
     },
     [],
   )
+
+  const trocarDepoimento = (resolver: (indiceAtual: number) => number) => {
+    if (depoimentos.length < 2) return
+
+    depoimentoTimersRef.current.forEach((timer) => window.clearTimeout(timer))
+    setAnimandoDepoimento(true)
+
+    const trocaTimer = window.setTimeout(() => {
+      setDepoimentoAtivo((atual) => resolver(atual))
+    }, 160)
+    const fimTimer = window.setTimeout(() => {
+      setAnimandoDepoimento(false)
+    }, 340)
+
+    depoimentoTimersRef.current = [trocaTimer, fimTimer]
+  }
 
   const atualizarFiltro = (novoFiltro: 'todos' | TipoBlogApi) => {
     timersRef.current.forEach((timer) => window.clearTimeout(timer))
@@ -151,23 +245,39 @@ export default function SobreNos() {
           <div className="mt-8 overflow-hidden rounded-[24px] border border-branco/10 bg-[#111] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
             <div className="relative isolate overflow-hidden bg-[#090909] px-3 py-3 sm:px-4 sm:py-4">
               <div className="absolute inset-0">
-                <img
-                  src={historiaAtual.imagem}
-                  alt=""
-                  aria-hidden
-                  className="h-full w-full scale-105 object-cover opacity-20 blur-2xl"
-                />
+                {!historiaAtual.video && (
+                  <img
+                    src={historiaAtual.imagem}
+                    alt=""
+                    aria-hidden
+                    className="h-full w-full scale-105 object-cover opacity-20 blur-2xl"
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/15 to-black/60" />
               </div>
 
               <div className="relative">
                 <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black/25 shadow-[0_18px_40px_rgba(0,0,0,0.3)]">
-                  <img
-                    src={historiaAtual.imagem}
-                    alt="História da Paraíba Hot Dog"
-                    className="h-[230px] w-full object-cover sm:h-[330px] lg:h-[390px]"
-                    style={{ objectPosition: historiaAtual.posicao }}
-                  />
+                  {historiaAtual.video ? (
+                    <video
+                      key={historiaAtual.imagem}
+                      src={historiaAtual.imagem}
+                      aria-label="Vídeo da história da Paraíba Hot Dog"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      controls
+                      className="aspect-video w-full bg-black object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={historiaAtual.imagem}
+                      alt="História da Paraíba Hot Dog"
+                      className="aspect-video w-full object-cover"
+                      style={{ objectPosition: historiaAtual.posicao }}
+                    />
+                  )}
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-transparent" />
                 </div>
 
@@ -191,11 +301,8 @@ export default function SobreNos() {
             </div>
 
             <div className="px-4 py-5 sm:px-6 sm:py-7">
-              <p className="mx-auto max-w-4xl text-center font-barlow text-sm leading-7 text-branco/80 sm:text-base">
-                Nascemos da paixão pela gastronomia de rua e pelo sabor autêntico da Paraíba.
-                Desde 2015, levamos o melhor hot dog arretado para os brasilenses com qualidade,
-                fartura e tradição. Nossa missão é servir ingredientes frescos, receitas
-                exclusivas e um atendimento que faz você se sentir em casa.
+              <p className="mx-auto max-w-4xl text-center font-barlow text-sm leading-7 text-branco/80 whitespace-pre-line sm:text-base">
+                {texto}
               </p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3 sm:gap-4">
@@ -311,46 +418,69 @@ export default function SobreNos() {
             </h2>
           </div>
 
-          <div className="mx-auto mt-8 max-w-4xl rounded-2xl bg-[#2a2a2a] px-5 py-6 shadow-[0_12px_40px_rgba(0,0,0,0.3)] sm:px-8">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-barlow-condensed text-xl font-black uppercase">{depoimento.nome}</p>
-                <p className="text-xs uppercase tracking-[0.2em] text-branco/50">{depoimento.cidade}</p>
+          <div className="mx-auto mt-8 max-w-4xl overflow-hidden rounded-2xl bg-[#2a2a2a] px-5 py-6 shadow-[0_12px_40px_rgba(0,0,0,0.3)] sm:px-8">
+            <div
+              className={`transition-all duration-300 ease-out ${
+                animandoDepoimento
+                  ? 'translate-y-1 opacity-0 blur-[1px]'
+                  : 'translate-y-0 opacity-100 blur-0'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="font-barlow-condensed text-xl font-black uppercase break-words">
+                    {depoimento.nome}
+                  </p>
+                </div>
+                <div
+                  className="flex shrink-0 items-center gap-1 text-amarelo"
+                  aria-label={`${depoimento.estrelas} de ${NOTA_MAXIMA} estrelas`}
+                >
+                  {Array.from({ length: NOTA_MAXIMA }).map((_, index) => (
+                    <Star
+                      key={index}
+                      size={16}
+                      fill={index < depoimento.estrelas ? 'currentColor' : 'none'}
+                      className={index < depoimento.estrelas ? 'text-amarelo' : 'text-branco/25'}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-1 text-amarelo" aria-label="5 estrelas">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <Star key={index} size={16} fill="currentColor" />
-                ))}
-              </div>
-            </div>
 
-            <p className="mt-5 text-sm leading-7 text-branco/80 sm:text-base">
-              &quot;{depoimento.texto}&quot;
-            </p>
+              <p className="mt-5 min-h-[6rem] text-sm leading-7 text-branco/80 whitespace-pre-line break-words sm:text-base">
+                &quot;{depoimento.texto}&quot;
+              </p>
+            </div>
 
             <div className="mt-6 flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => setDepoimentoAtivo((atual) => (atual - 1 + depoimentos.length) % depoimentos.length)}
+                onClick={() =>
+                  trocarDepoimento(
+                    (atual) => (atual - 1 + depoimentos.length) % depoimentos.length,
+                  )
+                }
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-amarelo text-preto-v1 transition hover:brightness-95"
                 aria-label="Depoimento anterior"
               >
                 <ChevronLeft size={20} />
               </button>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap justify-center gap-2">
                 {depoimentos.map((item, index) => (
                   <button
-                    key={item.nome}
+                    key={`${item.nome}-${index}`}
                     type="button"
-                    onClick={() => setDepoimentoAtivo(index)}
-                    className={`h-2.5 rounded-full transition-all ${index === depoimentoAtivo ? 'w-8 bg-amarelo' : 'w-2.5 bg-branco/25'}`}
+                    onClick={() => trocarDepoimento(() => index)}
+                    className={`h-2.5 rounded-full transition-all ${index === indiceDepoimento ? 'w-8 bg-amarelo' : 'w-2.5 bg-branco/25'}`}
                     aria-label={`Ver depoimento de ${item.nome}`}
                   />
                 ))}
               </div>
               <button
                 type="button"
-                onClick={() => setDepoimentoAtivo((atual) => (atual + 1) % depoimentos.length)}
+                onClick={() =>
+                  trocarDepoimento((atual) => (atual + 1) % depoimentos.length)
+                }
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-amarelo text-preto-v1 transition hover:brightness-95"
                 aria-label="Proximo depoimento"
               >
