@@ -6,6 +6,7 @@ import EdicaoUnidades from './EdicaoUnidades'
 import GestaoUsuarios from './GestaoUsuarios'
 import GestaoClientes from './GestaoClientes'
 import EdicaoAvaliacao from './EdicaoAvaliacao'
+import EdicaoSobreNos from './EdicaoSobreNos'
 
 type ModalConfiguracoesProps = {
   aberto: boolean
@@ -54,6 +55,7 @@ export default function ModalConfiguracoes({
           <GestaoUsuarios onNavigate={onFechar} />
           <GestaoClientes onNavigate={onFechar} />
           <EdicaoAvaliacao onNavigate={onFechar} />
+          <EdicaoSobreNos onNavigate={onFechar} />
         </div>
       </div>
     </div>

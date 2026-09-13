@@ -7,6 +7,7 @@ import GestaoClientes from './telas/administrador/GestaoClientes'
 import GestaoBlog from './telas/administrador/GestaoBlog'
 import GestaoAvaliacoes from './telas/administrador/GestaoAvaliacoes'
 import GestaoDuvidasFrequentes from './telas/administrador/GestaoDuvidasFrequentes'
+import EdicaoSobreNos from './telas/administrador/EdicaoSobreNos'
 import { useAuth } from './contextos/useAuth'
 import Cardapio from './telas/usuario/Cardapio'
 import CartaoFidelidade from './telas/usuario/CartaoFidelidade'
@@ -65,6 +66,10 @@ export default function App() {
     return <AcessoNegado />
   }
 
+  if (pathname === '/admin/configuracoes/sobre-nos' && !hasRole('administrador')) {
+    return <AcessoNegado />
+  }
+
   if (pathname === '/admin') {
     return <Painel />
   }
@@ -95,6 +100,10 @@ export default function App() {
 
   if (pathname === '/admin/configuracoes/duvidas-frequentes') {
     return <GestaoDuvidasFrequentes />
+  }
+
+  if (pathname === '/admin/configuracoes/sobre-nos') {
+    return <EdicaoSobreNos />
   }
 
   if (pathname === '/admin/anotar-pedidos') {
@@ -161,6 +170,7 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin/configuracoes/duvidas-frequentes') {
     return `Dúvidas Frequentes | ${baseTitle}`
   }
+  if (pathname === '/admin/configuracoes/sobre-nos') return `Sobre Nós | ${baseTitle}`
   if (pathname === '/admin/anotar-pedidos') return `Anotar Pedidos | ${baseTitle}`
   if (pathname === '/dashboard' || pathname === '/admin/dashboard') return `Dashboard | ${baseTitle}`
   if (pathname === '/cozinha' || pathname === '/admin/cozinha') return `Cozinha | ${baseTitle}`

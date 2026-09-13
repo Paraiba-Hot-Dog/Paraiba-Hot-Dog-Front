@@ -8,16 +8,26 @@ import imgCarrossel4 from '../../imagens/sobre-nos/WhatsApp Image 2026-04-15 at 
 import { resolverUrlImagem } from '../../servicos/api'
 import { listarPostsBlogApi, resolverImagemBlogApi, type BlogPostApi, type TipoBlogApi } from '../../servicos/blogApi'
 import { listarAvaliacoesApi, NOTA_MAXIMA, type AvaliacaoApi } from '../../servicos/avaliacoesApi'
+import {
+  ehVideoSobreNos,
+  ESTATISTICAS_PADRAO_SOBRE_NOS,
+  listarImagensSobreNosApi,
+  obterSobreNosApi,
+  resolverImagemSobreNosApi,
+  TEXTO_PADRAO_SOBRE_NOS,
+  type EstatisticaSobreNosApi,
+} from '../../servicos/sobreNosApi'
 
 const smashMandacaru = resolverUrlImagem('/uploads/produtos/smash-mandacaru.jpeg') ?? ''
 const dogArretado = resolverUrlImagem('/uploads/produtos/dog-arretado.jpeg') ?? ''
 
+type HistoriaImagem = { imagem: string; posicao: string; video?: boolean }
 
-const historias = [
+const historiasFallback: HistoriaImagem[] = [
   { imagem: imgCarrossel4, posicao: 'center center' },
   { imagem: imgCarrossel2, posicao: 'center top' },
   { imagem: imgCarrossel3, posicao: 'center center' },
-] as const
+]
 
 const noticiasFallback = [
   {
@@ -64,6 +74,11 @@ const depoimentosFallback: Depoimento[] = [
 ]
 
 export default function SobreNos() {
+  const [texto, setTexto] = useState(TEXTO_PADRAO_SOBRE_NOS)
+  const [estatisticas, setEstatisticas] = useState<EstatisticaSobreNosApi[]>(
+    ESTATISTICAS_PADRAO_SOBRE_NOS,
+  )
+  const [historias, setHistorias] = useState<HistoriaImagem[]>(historiasFallback)
   const [imagemAtiva, setImagemAtiva] = useState(0)
   const [depoimentoAtivo, setDepoimentoAtivo] = useState(0)
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoApi[]>([])
@@ -86,23 +101,43 @@ export default function SobreNos() {
     }))
   }, [avaliacoes])
 
-  const historiaAtual = historias[imagemAtiva]
+  const historiaAtual = historias[imagemAtiva] ?? historias[0]
   const indiceDepoimento = depoimentos.length
     ? depoimentoAtivo % depoimentos.length
     : 0
   const depoimento = depoimentos[indiceDepoimento]
 
-  const estatisticas = useMemo(
-    () => [
-      { valor: '10+', legenda: 'Anos de funcionamento' },
-      { valor: '4,9', legenda: 'Avaliação média' },
-      { valor: '3', legenda: 'Unidades' },
-    ],
-    [],
-  )
-
   useEffect(() => {
     let ativo = true
+
+    async function carregarSobreNos() {
+      try {
+        const dados = await obterSobreNosApi()
+        if (!ativo) return
+        if (dados.texto) setTexto(dados.texto)
+        if (dados.estatisticas?.length) setEstatisticas(dados.estatisticas)
+      } catch {
+        // Mantem dados padrao
+      }
+    }
+
+    async function carregarImagens() {
+      try {
+        const imagensApi = await listarImagensSobreNosApi()
+        if (!ativo || !imagensApi.length) return
+
+        setHistorias(
+          imagensApi.map((item) => ({
+            imagem: resolverImagemSobreNosApi(item.imagem_url) ?? '',
+            posicao: item.posicao || 'center center',
+            video: ehVideoSobreNos(item.imagem_url),
+          })),
+        )
+        setImagemAtiva(0)
+      } catch {
+        // Mantem dados padrao
+      }
+    }
 
     async function carregarPosts() {
       setCarregandoPosts(true)
@@ -125,6 +160,8 @@ export default function SobreNos() {
       }
     }
 
+    carregarSobreNos()
+    carregarImagens()
     carregarPosts()
 
     return () => {
@@ -208,23 +245,39 @@ export default function SobreNos() {
           <div className="mt-8 overflow-hidden rounded-[24px] border border-branco/10 bg-[#111] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
             <div className="relative isolate overflow-hidden bg-[#090909] px-3 py-3 sm:px-4 sm:py-4">
               <div className="absolute inset-0">
-                <img
-                  src={historiaAtual.imagem}
-                  alt=""
-                  aria-hidden
-                  className="h-full w-full scale-105 object-cover opacity-20 blur-2xl"
-                />
+                {!historiaAtual.video && (
+                  <img
+                    src={historiaAtual.imagem}
+                    alt=""
+                    aria-hidden
+                    className="h-full w-full scale-105 object-cover opacity-20 blur-2xl"
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/15 to-black/60" />
               </div>
 
               <div className="relative">
                 <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black/25 shadow-[0_18px_40px_rgba(0,0,0,0.3)]">
-                  <img
-                    src={historiaAtual.imagem}
-                    alt="História da Paraíba Hot Dog"
-                    className="h-[230px] w-full object-cover sm:h-[330px] lg:h-[390px]"
-                    style={{ objectPosition: historiaAtual.posicao }}
-                  />
+                  {historiaAtual.video ? (
+                    <video
+                      key={historiaAtual.imagem}
+                      src={historiaAtual.imagem}
+                      aria-label="Vídeo da história da Paraíba Hot Dog"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      controls
+                      className="aspect-video w-full bg-black object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={historiaAtual.imagem}
+                      alt="História da Paraíba Hot Dog"
+                      className="aspect-video w-full object-cover"
+                      style={{ objectPosition: historiaAtual.posicao }}
+                    />
+                  )}
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-transparent" />
                 </div>
 
@@ -248,11 +301,8 @@ export default function SobreNos() {
             </div>
 
             <div className="px-4 py-5 sm:px-6 sm:py-7">
-              <p className="mx-auto max-w-4xl text-center font-barlow text-sm leading-7 text-branco/80 sm:text-base">
-                Nascemos da paixão pela gastronomia de rua e pelo sabor autêntico da Paraíba.
-                Desde 2015, levamos o melhor hot dog arretado para os brasilenses com qualidade,
-                fartura e tradição. Nossa missão é servir ingredientes frescos, receitas
-                exclusivas e um atendimento que faz você se sentir em casa.
+              <p className="mx-auto max-w-4xl text-center font-barlow text-sm leading-7 text-branco/80 whitespace-pre-line sm:text-base">
+                {texto}
               </p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3 sm:gap-4">
