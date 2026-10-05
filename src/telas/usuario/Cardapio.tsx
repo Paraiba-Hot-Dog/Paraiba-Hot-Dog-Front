@@ -326,10 +326,10 @@ function NavegacaoCategorias({
     >
       <div className="flex flex-col gap-3 min-[640px]:flex-row min-[640px]:items-stretch min-[640px]:justify-start min-[640px]:gap-3">
         <ul
-          className={`order-2 flex w-full items-center gap-1 px-1.5 ${barraControle} min-[640px]:order-1 min-[640px]:w-max min-[640px]:shrink-0`}
+          className={`order-2 flex w-full items-center gap-1 overflow-x-auto px-1.5 ${barraControle} min-[640px]:order-1 min-[640px]:w-auto min-[640px]:min-w-0 min-[640px]:flex-1`}
         >
           {secoes.map((secao) => (
-            <li key={secao.id} className="min-w-0 flex-1 min-[640px]:flex-none">
+            <li key={secao.id} className="shrink-0 min-[640px]:flex-none">
               <a
                 href={`#${secao.id}`}
                 className={`${opcaoCategoria} w-full min-[640px]:w-auto ${
@@ -373,7 +373,7 @@ function SecaoProdutos({
   ativa: boolean;
 }) {
   return (
-    <section id={secao.id} className="scroll-mt-44 pt-14 first:pt-12">
+    <section id={secao.id} className="scroll-mt-64 min-[640px]:scroll-mt-44 pt-14 first:pt-12">
       <h2
         className={`font-barlow-condensed text-[clamp(2rem,8vw,3.5rem)] font-black uppercase leading-none transition-colors ${
           ativa ? "text-amarelo" : "text-branco"
