@@ -290,6 +290,85 @@ function SeletorUnidadeCardapio({
   );
 }
 
+function normalizarTituloCategoria(titulo: string) {
+  return titulo
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function rotuloCategoriaTabBar(titulo: string) {
+  const tituloNormalizado = normalizarTituloCategoria(titulo);
+
+  if (tituloNormalizado.includes("smash")) return "Smashdogs";
+  if (
+    tituloNormalizado.includes("hotdog") ||
+    tituloNormalizado.includes("hot dog")
+  ) {
+    return "Hot Dog";
+  }
+  if (tituloNormalizado.includes("bebida")) return "Bebidas";
+  if (tituloNormalizado.includes("acompanhamento")) return "Acompanhamentos";
+
+  return titulo;
+}
+
+function pesoCategoriaTabBar(titulo: string) {
+  const tituloNormalizado = normalizarTituloCategoria(titulo);
+
+  if (tituloNormalizado.includes("acompanhamento")) return 1.9;
+  if (tituloNormalizado.includes("smash")) return 1.25;
+  return 0.925;
+}
+
+function TabBarCategorias({
+  secoes,
+  secaoAtivaId,
+}: {
+  secoes: SecaoCardapio[];
+  secaoAtivaId: string;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Categorias do cardápio"
+      className="-mx-4 mt-3 hidden w-[calc(100%_+_2rem)] overflow-hidden border-y border-branco/10 bg-[#27272A] shadow-[0_10px_24px_rgba(0,0,0,0.22)] max-[500px]:block"
+    >
+      <ul className="mx-auto flex h-14 max-w-lg overflow-hidden">
+        {secoes.map((secao) => {
+          const ativa = secao.id === secaoAtivaId;
+
+          return (
+            <li
+              key={secao.id}
+              className="min-w-0"
+              style={{
+                flexBasis: 0,
+                flexGrow: pesoCategoriaTabBar(secao.titulo),
+              }}
+            >
+              <a
+                href={`#${secao.id}`}
+                aria-label={`Ir para ${secao.titulo}`}
+                aria-current={ativa ? "location" : undefined}
+                className={`flex h-full w-full items-center justify-center px-0.5 font-barlow-condensed text-sm font-black uppercase leading-none transition-colors ${
+                  ativa
+                    ? "bg-amarelo text-preto-v1"
+                    : "text-[#BEC1C6] hover:text-branco"
+                }`}
+              >
+                <span className="max-w-full truncate">
+                  {rotuloCategoriaTabBar(secao.titulo)}
+                </span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function NavegacaoCategorias({
   secoes,
   secaoAtivaId,
@@ -321,12 +400,12 @@ function NavegacaoCategorias({
 
   return (
     <nav
-      aria-label="Categorias do cardápio"
+      aria-label="Filtros e categorias do cardápio"
       className="sticky top-16 z-[40] mt-8 bg-zinc-950 py-4"
     >
       <div className="flex flex-col gap-3 min-[640px]:flex-row min-[640px]:items-stretch min-[640px]:justify-start min-[640px]:gap-3">
         <ul
-          className={`order-2 flex w-full items-center gap-1 px-1.5 ${barraControle} min-[640px]:order-1 min-[640px]:w-max min-[640px]:shrink-0`}
+          className={`order-2 flex w-full items-center gap-1 px-1.5 ${barraControle} max-[500px]:hidden min-[640px]:order-1 min-[640px]:w-max min-[640px]:shrink-0`}
         >
           {secoes.map((secao) => (
             <li key={secao.id} className="min-w-0 flex-1 min-[640px]:flex-none">
@@ -359,6 +438,10 @@ function NavegacaoCategorias({
           )}
         </div>
       </div>
+
+      {secoes.length > 0 && (
+        <TabBarCategorias secoes={secoes} secaoAtivaId={secaoAtivaId} />
+      )}
     </nav>
   );
 }
@@ -373,7 +456,10 @@ function SecaoProdutos({
   ativa: boolean;
 }) {
   return (
-    <section id={secao.id} className="scroll-mt-44 pt-14 first:pt-12">
+    <section
+      id={secao.id}
+      className="scroll-mt-44 pt-14 first:pt-12"
+    >
       <h2
         className={`font-barlow-condensed text-[clamp(2rem,8vw,3.5rem)] font-black uppercase leading-none transition-colors ${
           ativa ? "text-amarelo" : "text-branco"
@@ -482,7 +568,8 @@ export default function Cardapio() {
     if (!secoes.length) return;
 
     const atualizarSecaoAtiva = () => {
-      const pontoAtivo = window.scrollY + 180;
+      const offsetNavegacao = window.innerWidth <= 500 ? 220 : 180;
+      const pontoAtivo = window.scrollY + offsetNavegacao;
       let secaoAtual = secoes[0]?.id ?? "";
 
       secoes.forEach((secao) => {
