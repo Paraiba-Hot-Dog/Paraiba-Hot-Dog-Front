@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
+  AlertTriangle,
   Banknote,
   CheckCircle2,
   ChevronDown,
@@ -284,6 +285,7 @@ export default function AnotarPedidos() {
   const [pedidoAbertoId, setPedidoAbertoId] = useState<number | null>(null)
   const [resumoKey, setResumoKey] = useState(0)
   const [usarDescontoFidelidade, setUsarDescontoFidelidade] = useState(false)
+  const [unidadePendente, setUnidadePendente] = useState<number | null>(null)
 
   useEffect(() => {
     let ativo = true
@@ -550,6 +552,39 @@ export default function AnotarPedidos() {
     setMensagemPedido('')
   }
 
+  function temProgressoNaoSalvo() {
+    return (
+      pedido.length > 0 ||
+      pedidoAbertoId !== null ||
+      nomeComanda.trim() !== '' ||
+      clientePedido !== null
+    )
+  }
+
+  function solicitarTrocaUnidade(novoId: number) {
+    if (unidadeUsuarioId) return
+
+    const idAtual = unidadeId ?? 0
+    if (novoId === idAtual) return
+
+    if (temProgressoNaoSalvo()) {
+      setUnidadePendente(novoId)
+      return
+    }
+
+    alterarUnidade(novoId)
+  }
+
+  function confirmarTrocaUnidade() {
+    if (unidadePendente === null) return
+    alterarUnidade(unidadePendente)
+    setUnidadePendente(null)
+  }
+
+  function cancelarTrocaUnidade() {
+    setUnidadePendente(null)
+  }
+
   return (
     <div className={`min-h-screen bg-[#f5f7fb] text-[#18212f] ${CLASSE_OFFSET_BARRA_ADMIN}`}>
       <BarraDeNavegacaoAdmin
@@ -607,7 +642,7 @@ export default function AnotarPedidos() {
           ))}
         </main>
 
-        <ResumoPedido key={resumoKey} pedido={pedido} subtotal={subtotal} pagamento={pagamento} fidelidade={fidelidade} unidades={unidades} unidadeId={unidadeId} unidadeBloqueada={Boolean(unidadeUsuarioId)} nomeComanda={nomeComanda} clientePedido={clientePedido} pedidosAbertos={pedidosAbertos} pedidoAbertoId={pedidoAbertoId} usarDescontoFidelidade={usarDescontoFidelidade} finalizando={finalizando} editandoItemId={editandoItemId} mensagemPedido={mensagemPedido} onPagamento={setPagamento} onFidelidade={setFidelidade} onQuantidade={alterarQuantidade} onEditarItemRegistrado={editarItemRegistrado} onAtualizarObservacao={atualizarObservacaoItemRegistrado} onUnidade={alterarUnidade} onNomeComanda={setNomeComanda} onCliente={setClientePedido} onUsarDesconto={setUsarDescontoFidelidade} onSalvarAberto={salvarPedidoAberto} onFinalizar={finalizarPedido} />
+        <ResumoPedido key={resumoKey} pedido={pedido} subtotal={subtotal} pagamento={pagamento} fidelidade={fidelidade} unidades={unidades} unidadeId={unidadeId} unidadeBloqueada={Boolean(unidadeUsuarioId)} nomeComanda={nomeComanda} clientePedido={clientePedido} pedidosAbertos={pedidosAbertos} pedidoAbertoId={pedidoAbertoId} usarDescontoFidelidade={usarDescontoFidelidade} finalizando={finalizando} editandoItemId={editandoItemId} mensagemPedido={mensagemPedido} onPagamento={setPagamento} onFidelidade={setFidelidade} onQuantidade={alterarQuantidade} onEditarItemRegistrado={editarItemRegistrado} onAtualizarObservacao={atualizarObservacaoItemRegistrado} onUnidade={solicitarTrocaUnidade} onNomeComanda={setNomeComanda} onCliente={setClientePedido} onUsarDesconto={setUsarDescontoFidelidade} onSalvarAberto={salvarPedidoAberto} onFinalizar={finalizarPedido} />
       </div>
 
       <button
@@ -622,6 +657,14 @@ export default function AnotarPedidos() {
       </button>
 
       {produtoEmConfiguracao && <ModalConfiguracao produto={produtoEmConfiguracao} onFechar={() => setProdutoEmConfiguracao(null)} onAdicionar={(item) => { adicionarAoPedido(item); setProdutoEmConfiguracao(null) }} />}
+
+      {unidadePendente !== null && (
+        <ModalConfirmarTrocaUnidade
+          nomeUnidade={unidades.find((unidade) => unidade.id === unidadePendente)?.nome ?? null}
+          onCancelar={cancelarTrocaUnidade}
+          onConfirmar={confirmarTrocaUnidade}
+        />
+      )}
     </div>
   )
 }
@@ -727,6 +770,59 @@ function ModalConfiguracao({ produto, onFechar, onAdicionar }: { produto: Produt
           </section>
 
           <div className="sticky bottom-0 -mx-5 -mb-5 flex gap-3 border-t border-slate-200 bg-white p-5 sm:-mx-6 sm:-mb-6 sm:p-6"><button type="button" onClick={onFechar} className="rounded-xl border border-slate-200 px-5 py-3 text-xs font-bold uppercase text-slate-500">Cancelar</button><button type="button" disabled={!podeAdicionar} onClick={confirmar} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amarelo px-4 py-3 text-xs font-black uppercase disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> Adicionar - {moeda(precoFinal)}</button></div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ModalConfirmarTrocaUnidade({
+  nomeUnidade,
+  onCancelar,
+  onConfirmar,
+}: {
+  nomeUnidade: string | null
+  onCancelar: () => void
+  onConfirmar: () => void
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4 py-6 backdrop-blur-sm"
+      onClick={onCancelar}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+          <AlertTriangle size={22} />
+        </span>
+        <h2 className="mt-4 font-barlow-condensed text-xl font-black uppercase text-preto-v1">
+          Trocar de unidade?
+        </h2>
+        <p className="mt-2 text-sm leading-5 text-slate-500">
+          {nomeUnidade ? (
+            <>Ao trocar para <strong className="text-preto-v1">{nomeUnidade}</strong>, </>
+          ) : (
+            'Ao limpar a unidade selecionada, '
+          )}
+          os itens ainda não enviados para a cozinha e os dados do pedido atual (comanda, cliente vinculado) serão descartados.
+        </p>
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            onClick={onCancelar}
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-xs font-black uppercase text-slate-500 transition hover:border-slate-300"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onConfirmar}
+            className="flex-1 rounded-xl bg-emerald-600 px-4 py-3 text-xs font-black uppercase text-white transition hover:brightness-95"
+          >
+            Trocar e descartar
+          </button>
         </div>
       </div>
     </div>
