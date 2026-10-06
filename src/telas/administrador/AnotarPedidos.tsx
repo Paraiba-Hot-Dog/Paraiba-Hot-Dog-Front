@@ -56,6 +56,12 @@ type VariacaoProduto = {
   produtoVariacaoComboId?: number
 }
 
+type AdicionalProduto = {
+  id: number
+  nome: string
+  preco: number
+}
+
 type Produto = {
   id: string
   nome: string
@@ -64,6 +70,7 @@ type Produto = {
   imagem: string
   variacoes?: VariacaoProduto[]
   permiteCombo?: boolean
+  adicionais?: AdicionalProduto[]
 }
 
 type ItemPedido = {
@@ -74,6 +81,7 @@ type ItemPedido = {
   quantidade: number
   produtoVariacaoId?: number
   observacao?: string | null
+  adicionais?: AdicionalProduto[]
 }
 
 type ClienteVinculado = {
@@ -349,7 +357,7 @@ export default function AnotarPedidos() {
   }, [busca, cardapio])
 
   function adicionar(produto: Produto) {
-    if (produto.variacoes?.length || produto.permiteCombo) {
+    if (produto.variacoes?.length || produto.permiteCombo || produto.adicionais?.length) {
       setProdutoEmConfiguracao(produto)
       return
     }
@@ -398,7 +406,7 @@ export default function AnotarPedidos() {
       produto_variacao_id: item.produtoVariacaoId as number,
       quantidade: item.quantidade,
       observacao: item.observacao ?? null,
-      adicional_ids: [],
+      adicional_ids: item.adicionais?.map((adicional) => adicional.id) ?? [],
     }))
   }
 
@@ -695,19 +703,29 @@ function ModalConfiguracao({ produto, onFechar, onAdicionar }: { produto: Produt
   const [comboEscolha, setComboEscolha] = useState<boolean | null>(produto.permiteCombo ? null : false)
   const [bebida, setBebida] = useState(bebidasCombo[0])
   const [observacao, setObservacao] = useState('')
+  const [adicionaisSelecionados, setAdicionaisSelecionados] = useState<number[]>([])
   const combo = comboEscolha === true
   const precoIndividual = variacao?.preco ?? produto.preco
-  const precoFinal = combo ? (variacao?.precoCombo ?? precoIndividual + 13) : precoIndividual
+  const adicionaisEscolhidos = produto.adicionais?.filter((adicional) => adicionaisSelecionados.includes(adicional.id)) ?? []
+  const totalAdicionais = adicionaisEscolhidos.reduce((total, adicional) => total + adicional.preco, 0)
+  const precoFinal = (combo ? (variacao?.precoCombo ?? precoIndividual + 13) : precoIndividual) + totalAdicionais
   const tamanhoRespondido = !temVariacoesMultiplas || variacao !== null
   const comboRespondido = !produto.permiteCombo || comboEscolha !== null
   const podeAdicionar = tamanhoRespondido && comboRespondido
+
+  function alternarAdicional(id: number) {
+    setAdicionaisSelecionados((atual) =>
+      atual.includes(id) ? atual.filter((valor) => valor !== id) : [...atual, id],
+    )
+  }
 
   function confirmar() {
     if (!podeAdicionar) return
     const nomeBase = variacao?.nome ?? produto.nome
     const descricaoBase = variacao?.descricao ?? produto.descricao
+    const idAdicionais = adicionaisEscolhidos.map((adicional) => adicional.id).sort((a, b) => a - b).join('+')
     onAdicionar({
-      id: [produto.id, variacao?.id, combo ? 'combo' : 'individual', combo ? bebida : ''].filter(Boolean).join(':'),
+      id: [produto.id, variacao?.id, combo ? 'combo' : 'individual', combo ? bebida : '', idAdicionais].filter(Boolean).join(':'),
       nome: combo ? `Combo ${nomeBase}` : nomeBase,
       descricao: combo ? `${descricaoBase} | Paraiba Chips + ${bebida}` : descricaoBase,
       preco: precoFinal,
@@ -715,6 +733,7 @@ function ModalConfiguracao({ produto, onFechar, onAdicionar }: { produto: Produt
       produtoVariacaoId: combo
         ? variacao?.produtoVariacaoComboId ?? variacao?.produtoVariacaoId
         : variacao?.produtoVariacaoId,
+      adicionais: adicionaisEscolhidos.length ? adicionaisEscolhidos : undefined,
     })
   }
 
@@ -763,6 +782,20 @@ function ModalConfiguracao({ produto, onFechar, onAdicionar }: { produto: Produt
           )}
 
           {combo && <GrupoConfiguracao titulo="Escolha a bebida" descricao="Selecione a bebida do combo.">{bebidasCombo.map((opcao) => <BotaoOpcao key={opcao} ativo={bebida === opcao} titulo={opcao} onClick={() => setBebida(opcao)} />)}</GrupoConfiguracao>}
+
+          {produto.adicionais && produto.adicionais.length > 0 && (
+            <GrupoConfiguracao titulo="Acréscimos" descricao="Opcional. Pode escolher mais de um.">
+              {produto.adicionais.map((adicional) => (
+                <BotaoOpcao
+                  key={adicional.id}
+                  ativo={adicionaisSelecionados.includes(adicional.id)}
+                  titulo={adicional.nome}
+                  preco={adicional.preco}
+                  onClick={() => alternarAdicional(adicional.id)}
+                />
+              ))}
+            </GrupoConfiguracao>
+          )}
 
           <section>
             <div><h3 className="text-sm font-black">Alguma observação?</h3><p className="mt-0.5 text-xs text-slate-400">Opcional. Aparece para a cozinha.</p></div>
@@ -1030,7 +1063,7 @@ function ResumoPedido({ pedido, subtotal, pagamento, fidelidade, unidades, unida
               {itensRegistrados.map((item) => (
                 <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div><p className="text-sm font-bold">{item.quantidade}x {formatarItemPedido(item.produto_nome, item.produto_variacao_nome)}</p><p className="mt-1 text-[10px] text-slate-400">Lote {item.lote}</p>{item.observacao && item.observacao.split('\n').map((linha, i) => <p key={i} className={`mt-0.5 text-[10px] font-semibold ${linha.startsWith('Obs: ') ? 'text-red-500' : 'text-slate-400'}`}>{linha.startsWith('Obs: ') ? `observação: ${linha.slice(5)}` : linha}</p>)}</div>
+                    <div><p className="text-sm font-bold">{item.quantidade}x {formatarItemPedido(item.produto_nome, item.produto_variacao_nome)}</p><p className="mt-1 text-[10px] text-slate-400">Lote {item.lote}</p>{item.adicionais.length > 0 && <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">+ {item.adicionais.map((adicional) => adicional.nome).join(', ')}</p>}{item.observacao && item.observacao.split('\n').map((linha, i) => <p key={i} className={`mt-0.5 text-[10px] font-semibold ${linha.startsWith('Obs: ') ? 'text-red-500' : 'text-slate-400'}`}>{linha.startsWith('Obs: ') ? `observação: ${linha.slice(5)}` : linha}</p>)}</div>
                     <span className={`rounded-full px-2 py-1 text-[8px] font-black uppercase ${item.status === 'entregue' ? 'bg-emerald-100 text-emerald-700' : item.status === 'preparando' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{item.status}</span>
                   </div>
                   <div className="mt-3 flex items-center justify-between">
@@ -1044,7 +1077,7 @@ function ResumoPedido({ pedido, subtotal, pagamento, fidelidade, unidades, unida
                         <button type="button" disabled={editandoItemId === item.id} onClick={() => onEditarItemRegistrado(item, 'excluir')} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-400 hover:text-red-500 disabled:opacity-40"><Trash2 size={14} /></button>
                       </div>
                     ) : <span className="text-[9px] font-semibold text-slate-400">Edicao bloqueada pela cozinha</span>}
-                    <p className="text-right text-xs font-bold">{moeda(Number(item.preco_unitario) * item.quantidade)}</p>
+                    <p className="text-right text-xs font-bold">{moeda((Number(item.preco_unitario) + item.adicionais.reduce((total, adicional) => total + Number(adicional.preco), 0)) * item.quantidade)}</p>
                   </div>
                   {item.status === 'aberto' && !pedidoEmPreparo && (
                     <div className="mt-2 border-t border-slate-100 pt-2">
@@ -1104,7 +1137,7 @@ function ResumoPedido({ pedido, subtotal, pagamento, fidelidade, unidades, unida
         {pedido.length === 0 && itensRegistrados.length === 0 ? (
           <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center"><ShoppingBag size={32} strokeWidth={1.5} className="text-slate-300" /><p className="mt-3 text-sm font-bold">Seu pedido está vazio</p><p className="mt-1 text-xs text-slate-400">Adicione produtos do cardápio.</p></div>
         ) : pedido.length > 0 ? (
-          <div className="space-y-3">{pedido.map((item) => <div key={item.id} className="rounded-xl border border-slate-200 p-3"><div className="flex justify-between gap-3"><div><p className="text-sm font-bold">{item.nome}</p><p className="mt-1 text-[10px] leading-4 text-slate-400">{item.descricao}</p><p className="mt-1 text-xs text-slate-400">{moeda(item.preco)} cada</p></div><button type="button" onClick={() => onQuantidade(item.id, 0)} className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button></div><div className="mt-3 flex items-center justify-between"><div className="flex items-center overflow-hidden rounded-lg border border-slate-200"><button type="button" onClick={() => onQuantidade(item.id, item.quantidade - 1)} className="p-2"><Minus size={13} /></button><span className="min-w-8 text-center text-xs font-bold">{item.quantidade}</span><button type="button" onClick={() => onQuantidade(item.id, item.quantidade + 1)} className="p-2"><Plus size={13} /></button></div><strong className="text-sm">{moeda(item.preco * item.quantidade)}</strong></div></div>)}</div>
+          <div className="space-y-3">{pedido.map((item) => <div key={item.id} className="rounded-xl border border-slate-200 p-3"><div className="flex justify-between gap-3"><div><p className="text-sm font-bold">{item.nome}</p><p className="mt-1 text-[10px] leading-4 text-slate-400">{item.descricao}</p>{item.adicionais && item.adicionais.length > 0 && <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">+ {item.adicionais.map((adicional) => adicional.nome).join(', ')}</p>}<p className="mt-1 text-xs text-slate-400">{moeda(item.preco)} cada</p></div><button type="button" onClick={() => onQuantidade(item.id, 0)} className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button></div><div className="mt-3 flex items-center justify-between"><div className="flex items-center overflow-hidden rounded-lg border border-slate-200"><button type="button" onClick={() => onQuantidade(item.id, item.quantidade - 1)} className="p-2"><Minus size={13} /></button><span className="min-w-8 text-center text-xs font-bold">{item.quantidade}</span><button type="button" onClick={() => onQuantidade(item.id, item.quantidade + 1)} className="p-2"><Plus size={13} /></button></div><strong className="text-sm">{moeda(item.preco * item.quantidade)}</strong></div></div>)}</div>
         ) : null}
       </div>
 
@@ -1209,6 +1242,11 @@ function mapearProdutoApi(produto: ProdutoCardapioApi): Produto {
     imagem: imagemApi ?? imagemProdutoLocal(produto.nome),
     variacoes,
     permiteCombo: combos.length > 0,
+    adicionais: produto.adicionais.map((adicional) => ({
+      id: adicional.id,
+      nome: adicional.nome,
+      preco: Number(adicional.preco),
+    })),
   }
 }
 

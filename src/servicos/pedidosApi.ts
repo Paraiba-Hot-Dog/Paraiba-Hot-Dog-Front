@@ -23,6 +23,12 @@ export type PedidoApi = {
     observacao: string | null
     lote: number
     status: 'aberto' | 'preparando' | 'entregue' | 'cancelado'
+    adicionais: Array<{
+      id: number
+      adicional_id: number | null
+      nome: string
+      preco: string
+    }>
   }>
 }
 
