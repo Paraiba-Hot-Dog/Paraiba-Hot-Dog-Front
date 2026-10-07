@@ -39,14 +39,12 @@ export default function RecuperarSenha() {
   const [mensagem, setMensagem] = useState('')
   const [segundos, setSegundos] = useState(0)
   const [jaEnviou, setJaEnviou] = useState(false)
-  const [contagemDoLimite, setContagemDoLimite] = useState(false)
 
   useEffect(() => {
     const chave = email.trim().toLowerCase()
     const tinhaPrazo = Boolean(chave && lerPrazos()[chave] != null)
     setSegundos(segundosDoEmail(email))
     setJaEnviou(tinhaPrazo)
-    setContagemDoLimite(false)
   }, [email])
 
   useEffect(() => {
@@ -59,11 +57,10 @@ export default function RecuperarSenha() {
     return () => window.clearInterval(timer)
   }, [segundos > 0])
 
-  function iniciarContagem(total: number, limite: boolean) {
+  function iniciarContagem(total: number) {
     gravarPrazo(email, total)
     setSegundos(total)
     setJaEnviou(true)
-    setContagemDoLimite(limite)
   }
 
   async function enviarInstrucoes() {
@@ -76,17 +73,13 @@ export default function RecuperarSenha() {
         setMensagem(response.message)
       }
 
-      const validade = (response.link_valido_minutos ?? 30) * 60
-      if (response.email_status === 'limite') {
-        iniciarContagem(response.aguardar_segundos ?? 0, true)
-      } else if (response.email_status === 'error') {
+      const intervalo = response.intervalo_segundos ?? 60
+      if (response.email_status === 'error') {
         if ((response.aguardar_segundos ?? 0) > 0) {
-          iniciarContagem(response.aguardar_segundos ?? 0, true)
+          iniciarContagem(response.aguardar_segundos ?? 0)
         }
-      } else if (response.email_status === 'cooldown') {
-        iniciarContagem(response.aguardar_segundos ?? validade, false)
       } else {
-        iniciarContagem(validade, false)
+        iniciarContagem(response.aguardar_segundos ?? intervalo)
       }
     } catch (error) {
       console.error('Password recovery error:', error)
@@ -104,11 +97,8 @@ export default function RecuperarSenha() {
 
   let rotulo = 'ENVIAR INSTRUÇÕES'
   if (loading) rotulo = 'ENVIANDO...'
-  else if (segundos > 0) {
-    rotulo = contagemDoLimite
-      ? `REENVIAR EM ${formatarTempo(segundos)}`
-      : `LINK EXPIRA EM ${formatarTempo(segundos)}`
-  } else if (jaEnviou) rotulo = 'REENVIAR'
+  else if (segundos > 0) rotulo = `REENVIAR EM ${formatarTempo(segundos)}`
+  else if (jaEnviou) rotulo = 'REENVIAR'
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-100">
@@ -161,7 +151,7 @@ export default function RecuperarSenha() {
             </button>
 
             <p className="rounded-xl bg-[#f4f7fb] px-4 py-3 text-justify [text-align-last:justify] font-barlow text-sm leading-relaxed text-cinza-base">
-              O envio de e-mails de recuperação é limitado a 2 solicitações por hora. Em situações urgentes, entre em contato com o administrador.
+              Não recebeu o e-mail? Confira a caixa de spam. Você pode pedir um novo envio após 1 minuto. Em situações urgentes, entre em contato com o administrador.
             </p>
           </form>
 
