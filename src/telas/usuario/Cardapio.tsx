@@ -6,6 +6,8 @@ import type { ProdutoCardapio, SecaoCardapio } from "../../model/cardapio";
 import { listarSecoesCardapio } from "../../repository/cardapioRepository";
 import { listarUnidades, type Unidade } from "../../servicos/api";
 
+const MARGEM_ANCORA_EXTRA = 24;
+
 const formatadorPreco = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -290,6 +292,70 @@ function SeletorUnidadeCardapio({
   );
 }
 
+function BarraCategorias({
+  secoes,
+  secaoAtivaId,
+  classeBarra,
+}: {
+  secoes: SecaoCardapio[];
+  secaoAtivaId: string;
+  classeBarra: string;
+}) {
+  const listaRef = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    const lista = listaRef.current;
+    if (!lista) return;
+
+    const item = lista.querySelector<HTMLElement>(
+      `[data-secao="${secaoAtivaId}"]`,
+    );
+    if (!item) return;
+
+    const inicioItem = item.offsetLeft;
+    const fimItem = inicioItem + item.offsetWidth;
+    const inicioVisivel = lista.scrollLeft;
+    const fimVisivel = inicioVisivel + lista.clientWidth;
+
+    if (inicioItem < inicioVisivel || fimItem > fimVisivel) {
+      lista.scrollTo({
+        left: inicioItem - (lista.clientWidth - item.offsetWidth) / 2,
+        behavior: "smooth",
+      });
+    }
+  }, [secaoAtivaId]);
+
+  return (
+    <ul
+      ref={listaRef}
+      aria-label="Categorias do cardápio"
+      className={`flex w-full min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain px-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${classeBarra}`}
+    >
+      {secoes.map((secao) => {
+        const ativa = secao.id === secaoAtivaId;
+
+        return (
+          <li key={secao.id} className="shrink-0">
+            <a
+              href={`#${secao.id}`}
+              data-secao={secao.id}
+              aria-label={`Ir para ${secao.titulo}`}
+              aria-current={ativa ? "location" : undefined}
+              className={`flex h-9 items-center justify-center whitespace-nowrap rounded-xl px-4 font-barlow-condensed text-sm font-black uppercase leading-none transition-colors duration-200 min-[640px]:px-5 min-[640px]:text-base ${
+                ativa
+                  ? "bg-amarelo text-preto-v1"
+                  : "bg-transparent text-branco/75 hover:bg-branco/10 hover:text-branco"
+              }`}
+            >
+              {secao.titulo}
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function NavegacaoCategorias({
   secoes,
   secaoAtivaId,
@@ -298,6 +364,7 @@ function NavegacaoCategorias({
   carregandoUnidades,
   erroUnidades,
   onUnidadeChange,
+  navRef,
 }: {
   secoes: SecaoCardapio[];
   secaoAtivaId: string;
@@ -306,11 +373,10 @@ function NavegacaoCategorias({
   carregandoUnidades: boolean;
   erroUnidades: boolean;
   onUnidadeChange: (id: number | "") => void;
+  navRef: React.RefObject<HTMLElement | null>;
 }) {
   const barraControle =
     "h-12 rounded-2xl border border-branco/10 bg-zinc-800 shadow-[0_10px_24px_rgba(0,0,0,0.22)]";
-  const opcaoCategoria =
-    "flex h-9 items-center justify-center whitespace-nowrap rounded-xl px-3 font-barlow-condensed text-sm font-black uppercase leading-none transition-colors duration-200 min-[640px]:px-5 min-[640px]:text-base";
   const opcoesUnidade = [
     {
       id: "" as const,
@@ -321,28 +387,18 @@ function NavegacaoCategorias({
 
   return (
     <nav
-      aria-label="Categorias do cardápio"
+      ref={navRef}
+      aria-label="Filtros e categorias do cardápio"
       className="sticky top-16 z-[40] mt-8 bg-zinc-950 py-4"
     >
       <div className="flex flex-col gap-3 min-[640px]:flex-row min-[640px]:items-stretch min-[640px]:justify-start min-[640px]:gap-3">
-        <ul
-          className={`order-2 flex w-full items-center gap-1 overflow-x-auto px-1.5 ${barraControle} min-[640px]:order-1 min-[640px]:w-auto min-[640px]:min-w-0 min-[640px]:flex-1`}
-        >
-          {secoes.map((secao) => (
-            <li key={secao.id} className="shrink-0 min-[640px]:flex-none">
-              <a
-                href={`#${secao.id}`}
-                className={`${opcaoCategoria} w-full min-[640px]:w-auto ${
-                  secaoAtivaId === secao.id
-                    ? "bg-amarelo text-preto-v1"
-                    : "bg-transparent text-branco/75 hover:bg-branco/10 hover:text-branco"
-                }`}
-              >
-                {secao.titulo}
-              </a>
-            </li>
-          ))}
-        </ul>
+        <div className="order-2 min-w-0 min-[640px]:order-1 min-[640px]:flex-1">
+          <BarraCategorias
+            secoes={secoes}
+            secaoAtivaId={secaoAtivaId}
+            classeBarra={barraControle}
+          />
+        </div>
 
         <div className="order-1 w-full shrink-0 font-barlow min-[640px]:order-2 min-[640px]:w-52">
           <SeletorUnidadeCardapio
@@ -367,13 +423,19 @@ function SecaoProdutos({
   secao,
   onSelectProduto,
   ativa,
+  margemAncora,
 }: {
   secao: SecaoCardapio;
   onSelectProduto: (produto: ProdutoCardapio) => void;
   ativa: boolean;
+  margemAncora: number;
 }) {
   return (
-    <section id={secao.id} className="scroll-mt-64 min-[640px]:scroll-mt-44 pt-14 first:pt-12">
+    <section
+      id={secao.id}
+      style={{ scrollMarginTop: `${margemAncora}px` }}
+      className="pt-14 first:pt-12"
+    >
       <h2
         className={`font-barlow-condensed text-[clamp(2rem,8vw,3.5rem)] font-black uppercase leading-none transition-colors ${
           ativa ? "text-amarelo" : "text-branco"
@@ -477,12 +539,27 @@ export default function Cardapio() {
     [unidadeSelecionadaId, unidades],
   );
   const secaoAtivaExibida = secaoAtivaId || secoes[0]?.id || "";
+  const navRef = useRef<HTMLElement>(null);
+  const [alturaNav, setAlturaNav] = useState(0);
+
+  useEffect(() => {
+    const elemento = navRef.current;
+    if (!elemento) return;
+
+    const medir = () => setAlturaNav(elemento.offsetHeight);
+    medir();
+
+    const observador = new ResizeObserver(medir);
+    observador.observe(elemento);
+
+    return () => observador.disconnect();
+  }, [secoes, carregando]);
 
   useEffect(() => {
     if (!secoes.length) return;
 
     const atualizarSecaoAtiva = () => {
-      const pontoAtivo = window.scrollY + 180;
+      const pontoAtivo = window.scrollY + alturaNav + MARGEM_ANCORA_EXTRA;
       let secaoAtual = secoes[0]?.id ?? "";
 
       secoes.forEach((secao) => {
@@ -512,7 +589,7 @@ export default function Cardapio() {
       window.removeEventListener("scroll", reagirAoScroll);
       window.removeEventListener("resize", reagirAoScroll);
     };
-  }, [secoes]);
+  }, [secoes, alturaNav]);
 
   return (
     <>
@@ -546,6 +623,7 @@ export default function Cardapio() {
                 setProdutoSelecionado(null);
                 setUnidadeSelecionadaId(id);
               }}
+              navRef={navRef}
             />
           )}
 
@@ -571,6 +649,7 @@ export default function Cardapio() {
                     secao={secao}
                     ativa={secao.id === secaoAtivaExibida}
                     onSelectProduto={setProdutoSelecionado}
+                    margemAncora={alturaNav + MARGEM_ANCORA_EXTRA}
                   />
                 ))}
               </div>
