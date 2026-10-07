@@ -210,7 +210,7 @@ function AbasCozinha({
     <div
       role="tablist"
       aria-label="Visualização da cozinha"
-      className="flex w-full items-center gap-1 overflow-x-auto rounded-lg border border-gray-300 bg-white p-1 shadow-sm"
+      className="flex w-full items-center gap-1 rounded-lg border border-gray-300 bg-white p-1 shadow-sm"
     >
       {ABAS_COZINHA.map((opcao, indice) => {
         const selecionada = opcao.id === aba
@@ -231,7 +231,7 @@ function AbasCozinha({
             onClick={() => onChange(opcao.id)}
             onKeyDown={(evento) => aoTeclar(evento, indice)}
             className={[
-              'flex-1 whitespace-nowrap rounded-md px-4 py-2.5 font-barlow-condensed text-base font-semibold uppercase tracking-wide transition-colors sm:text-lg',
+              'min-w-0 flex-1 whitespace-nowrap rounded-md px-1.5 py-2 font-barlow-condensed text-xs font-semibold uppercase tracking-tight transition-colors sm:px-4 sm:py-2.5 sm:text-lg sm:tracking-wide',
               selecionada
                 ? 'bg-amarelo text-preto-v1 shadow-sm'
                 : 'bg-transparent text-preto-v1/70 hover:bg-amarelo/15 hover:text-preto-v1',
@@ -344,7 +344,7 @@ function PedidoCard({
 
   return (
     <article
-      className={`w-[min(100%,300px)] shrink-0 snap-start overflow-hidden rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] sm:w-[300px] ${cardSurface}`}
+      className={`w-full overflow-hidden rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] lg:w-[300px] ${cardSurface}`}
     >
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <span className="font-barlow-condensed text-sm font-black uppercase tracking-wider text-preto-v1">
@@ -698,7 +698,7 @@ export default function Cozinha() {
           id="painel-cozinha"
           role="tabpanel"
           aria-labelledby={`aba-cozinha-${aba}`}
-          className="-mx-3 flex min-h-0 flex-1 items-stretch gap-4 overflow-x-auto overscroll-x-contain px-3 pb-3 pt-1 snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:gap-5 sm:px-6 lg:mx-auto lg:max-w-7xl lg:flex-none lg:grid lg:grid-cols-[repeat(auto-fit,minmax(280px,320px))] lg:items-start lg:justify-center lg:justify-items-center lg:gap-6 lg:overflow-visible lg:px-8 lg:pb-0 lg:snap-none">
+          className="flex flex-col gap-4 pb-3 pt-1 lg:mx-auto lg:grid lg:max-w-7xl lg:grid-cols-[repeat(auto-fit,minmax(280px,320px))] lg:items-start lg:justify-center lg:justify-items-center lg:gap-6 lg:px-8 lg:pb-0">
           {pedidosFiltrados.length > 0 ? (
             pedidosFiltrados.map((pedido) => (
               <PedidoCard
@@ -712,7 +712,7 @@ export default function Cozinha() {
             ))
           ) : (
             !loading && (
-              <p className="w-full min-w-full basis-full py-8 text-center font-barlow text-sm text-[#777]">
+              <p className="w-full py-8 text-center font-barlow text-sm text-[#777]">
                 {busca.trim()
                   ? 'Nenhum pedido encontrado para essa busca.'
                   : 'Nenhum pedido nesta visualização.'}
