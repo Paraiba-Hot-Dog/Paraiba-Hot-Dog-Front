@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import CardapioAdm from './telas/administrador/CardapioAdm'
 import Painel from './telas/administrador/Painel'
 import GestaoUnidades from './telas/administrador/GestaoUnidades'
@@ -12,7 +12,6 @@ import { useAuth } from './contextos/useAuth'
 import Cardapio from './telas/usuario/Cardapio'
 import CartaoFidelidade from './telas/usuario/CartaoFidelidade'
 import Cozinha from './telas/administrador/Cozinha'
-import Dashboard from './telas/administrador/Dashboard'
 import Inicio from './telas/usuario/Inicio'
 import Login from './telas/usuario/Login'
 import SobreNos from './telas/usuario/SobreNos'
@@ -21,6 +20,9 @@ import RedefinirSenha from './telas/usuario/RedefinirSenha'
 import UnidadeAraucarias from './telas/usuario/UnidadeAraucarias'
 import AnotarPedidos from './telas/administrador/AnotarPedidos'
 import type { NomePermissaoApi } from './servicos/usuariosApi'
+
+// Carregada sob demanda para a biblioteca de gráficos não pesar nas outras telas.
+const Dashboard = lazy(() => import('./telas/administrador/Dashboard'))
 
 export default function App() {
   const { pathname } = window.location
@@ -111,7 +113,11 @@ export default function App() {
   }
 
   if (pathname === '/dashboard' || pathname === '/admin/dashboard') {
-    return <Dashboard />
+    return (
+      <Suspense fallback={<CarregandoAcesso />}>
+        <Dashboard />
+      </Suspense>
+    )
   }
 
   if (pathname === '/cozinha' || pathname === '/admin/cozinha') {
