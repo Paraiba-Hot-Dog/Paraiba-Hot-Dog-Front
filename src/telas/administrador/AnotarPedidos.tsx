@@ -881,6 +881,9 @@ function ModalConfirmarTrocaUnidade({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Trocar de unidade?"
       onClick={onCancelar}
     >
       <div
