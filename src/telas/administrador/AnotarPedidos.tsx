@@ -438,6 +438,10 @@ export default function AnotarPedidos() {
       setMensagemPedido('Informe o nome da comanda.')
       return false
     }
+    if (!pedidoAbertoId && fidelidade === 'cadastro' && !clientePedido) {
+      setMensagemPedido('Busque e vincule um cliente da fidelidade pelo telefone/e-mail, ou selecione "Sem cadastro" para continuar.')
+      return false
+    }
     if (exigirItens && !pedido.length) {
       setMensagemPedido('Adicione ao menos um item ao pedido.')
       return false
@@ -1079,9 +1083,9 @@ function ConfiguracaoPedido({
               </div>
             ) : (
               <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Telefone ou e-mail</label>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Telefone ou e-mail<span className="ml-1 text-red-600" aria-hidden>*</span></label>
                 <div className="mt-2 flex gap-2">
-                  <CampoComIcone icone={<Search size={15} />} valor={identificacao} onChange={setIdentificacao} placeholder="Buscar cliente..." />
+                  <CampoComIcone icone={<Search size={15} />} valor={identificacao} onChange={setIdentificacao} placeholder="Buscar cliente..." erro={Boolean(erroFidelidade)} />
                   <button type="button" onClick={vincularCliente} disabled={consultandoCliente} className="rounded-lg bg-preto-v1 px-3 text-[10px] font-black uppercase text-white disabled:opacity-60">{consultandoCliente ? 'Buscando...' : 'Buscar'}</button>
                 </div>
               </div>
@@ -1259,8 +1263,8 @@ function ResumoPedido({ pedido, subtotal, pagamento, pedidoSelecionado, itensReg
   )
 }
 
-function CampoComIcone({ icone, valor, onChange, placeholder, tipo = 'text' }: { icone: ReactNode; valor: string; onChange: (valor: string) => void; placeholder: string; tipo?: 'text' | 'email' | 'tel' }) {
-  return <label className="flex h-10 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-slate-400 focus-within:border-emerald-500">{icone}<input type={tipo} value={valor} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="min-w-0 flex-1 bg-transparent text-xs text-preto-v1 outline-none" /></label>
+function CampoComIcone({ icone, valor, onChange, placeholder, tipo = 'text', erro = false }: { icone: ReactNode; valor: string; onChange: (valor: string) => void; placeholder: string; tipo?: 'text' | 'email' | 'tel'; erro?: boolean }) {
+  return <label className={`flex h-10 flex-1 items-center gap-2 rounded-lg border bg-white px-3 text-slate-400 focus-within:border-emerald-500 ${erro ? 'border-red-400' : 'border-slate-200'}`}>{icone}<input type={tipo} value={valor} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="min-w-0 flex-1 bg-transparent text-xs text-preto-v1 outline-none" /></label>
 }
 
 function formatarItemPedido(produto: string, variacao: string | null) {
