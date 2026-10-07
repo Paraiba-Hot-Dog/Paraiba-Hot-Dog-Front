@@ -1,5 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { ChevronDown, Search } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { Search } from 'lucide-react'
 import BarraDeNavegacaoAdmin, {
   CLASSE_OFFSET_BARRA_ADMIN,
 } from '../../componentes/administrador/BarraDeNavegacaoAdmin'
@@ -181,82 +181,66 @@ function pedidoCorrespondeBusca(pedido: PedidoCozinha, termo: string) {
   )
 }
 
-function SeletorAbaCozinha({
+function AbasCozinha({
   aba,
   onChange,
 }: {
   aba: AbaCozinha
   onChange: (aba: AbaCozinha) => void
 }) {
-  const [aberto, setAberto] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const listaId = useId()
-  const labelAtual = ABAS_COZINHA.find((item) => item.id === aba)?.label ?? 'Fila de pedidos'
+  const botoesRef = useRef<Array<HTMLButtonElement | null>>([])
 
-  useEffect(() => {
-    if (!aberto) return
+  // Padrao WAI-ARIA de tabs: as setas movem o foco e ja trocam de visao.
+  function aoTeclar(evento: KeyboardEvent<HTMLButtonElement>, indice: number) {
+    const ultimo = ABAS_COZINHA.length - 1
+    let destino: number | null = null
 
-    function fecharAoClicarFora(event: MouseEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setAberto(false)
-      }
-    }
+    if (evento.key === 'ArrowRight') destino = indice === ultimo ? 0 : indice + 1
+    if (evento.key === 'ArrowLeft') destino = indice === 0 ? ultimo : indice - 1
+    if (evento.key === 'Home') destino = 0
+    if (evento.key === 'End') destino = ultimo
+    if (destino === null) return
 
-    document.addEventListener('mousedown', fecharAoClicarFora)
-    return () => document.removeEventListener('mousedown', fecharAoClicarFora)
-  }, [aberto])
+    evento.preventDefault()
+    onChange(ABAS_COZINHA[destino].id)
+    botoesRef.current[destino]?.focus()
+  }
 
   return (
-    <div ref={containerRef} className="relative w-full">
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={aberto}
-        aria-controls={listaId}
-        onClick={() => setAberto((atual) => !atual)}
-        className={[
-          'flex w-full items-center justify-between rounded-lg border bg-white px-5 py-3.5 font-barlow-condensed text-base font-semibold uppercase tracking-wide text-preto-v1 shadow-sm transition-all duration-200 sm:text-lg',
-          aberto ? 'border-gray-400 shadow-md' : 'border-gray-300 hover:border-gray-400',
-        ].join(' ')}
-      >
-        <span className="truncate text-left">{labelAtual}</span>
-        <ChevronDown
-          size={22}
-          className={`shrink-0 text-gray-500 transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
-          aria-hidden
-        />
-      </button>
+    <div
+      role="tablist"
+      aria-label="Visualização da cozinha"
+      className="flex w-full items-center gap-1 overflow-x-auto rounded-lg border border-gray-300 bg-white p-1 shadow-sm"
+    >
+      {ABAS_COZINHA.map((opcao, indice) => {
+        const selecionada = opcao.id === aba
 
-      {aberto && (
-        <ul
-          id={listaId}
-          role="listbox"
-          aria-label="Visualização da cozinha"
-          className="absolute top-full z-20 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
-        >
-          {ABAS_COZINHA.map((opcao) => {
-            const selecionada = opcao.id === aba
-
-            return (
-              <li key={opcao.id} role="option" aria-selected={selecionada}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange(opcao.id)
-                    setAberto(false)
-                  }}
-                  className={[
-                    'w-full px-5 py-3.5 text-left font-barlow-condensed text-base font-semibold uppercase tracking-wide transition-colors sm:text-lg',
-                    selecionada ? 'bg-gray-200 text-preto-v1' : 'bg-white text-preto-v1 hover:bg-yellow-50',
-                  ].join(' ')}
-                >
-                  {opcao.label}
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+        return (
+          <button
+            key={opcao.id}
+            ref={(elemento) => {
+              botoesRef.current[indice] = elemento
+            }}
+            type="button"
+            role="tab"
+            id={`aba-cozinha-${opcao.id}`}
+            aria-selected={selecionada}
+            aria-controls="painel-cozinha"
+            // Só a aba ativa entra na ordem de tabulação; as setas cuidam do resto.
+            tabIndex={selecionada ? 0 : -1}
+            onClick={() => onChange(opcao.id)}
+            onKeyDown={(evento) => aoTeclar(evento, indice)}
+            className={[
+              'flex-1 whitespace-nowrap rounded-md px-4 py-2.5 font-barlow-condensed text-base font-semibold uppercase tracking-wide transition-colors sm:text-lg',
+              selecionada
+                ? 'bg-amarelo text-preto-v1 shadow-sm'
+                : 'bg-transparent text-preto-v1/70 hover:bg-amarelo/15 hover:text-preto-v1',
+            ].join(' ')}
+          >
+            {opcao.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -468,6 +452,8 @@ export default function Cozinha() {
   const [busca, setBusca] = useState('')
   const [unidades, setUnidades] = useState<Unidade[]>([])
   const [unidadeSelecionadaId, setUnidadeSelecionadaId] = useState<number | null>(null)
+  // Sequencia das cargas da cozinha, para ignorar respostas que chegam fora de ordem.
+  const requisicaoRef = useRef(0)
 
   const unidadeSelecionada = useMemo(
     () => unidades.find((unidade) => unidade.id === unidadeSelecionadaId) ?? null,
@@ -477,19 +463,24 @@ export default function Cozinha() {
   async function carregarCozinha() {
     if (!unidadeSelecionadaId) return
 
+    const requisicao = (requisicaoRef.current += 1)
     try {
       setLoading(true)
       setErro('')
-      const items = await listarCozinha(unidadeSelecionadaId)
+      const items = await listarCozinha(unidadeSelecionadaId, true)
+      // Descarta resposta obsoleta: o polling de 5s pode responder depois de uma
+      // mutacao mais recente e reinserir na fila um lote que acabou de ser entregue.
+      if (requisicao !== requisicaoRef.current) return
       const grupos = agruparItens(items)
       setFila(grupos.filter((p) => p.status !== 'entregue' && p.status !== 'cancelado'))
       setEntregues(grupos.filter((p) => p.status === 'entregue'))
     } catch {
+      if (requisicao !== requisicaoRef.current) return
       setErro('Não foi possível carregar a fila da API.')
       setFila([])
       setEntregues([])
     } finally {
-      setLoading(false)
+      if (requisicao === requisicaoRef.current) setLoading(false)
     }
   }
 
@@ -601,6 +592,10 @@ export default function Cozinha() {
     try {
       await atualizarStatusCozinha(pedido.id, pedido.lote, status)
       atualizarPedidoLocal(pedido, status)
+      // Invalida qualquer GET em voo e ressincroniza com o servidor, para o lote
+      // entregue nao voltar a aparecer na fila no proximo ciclo do polling.
+      requisicaoRef.current += 1
+      void carregarCozinha()
     } catch {
       setErro('Não foi possível atualizar o pedido agora.')
     } finally {
@@ -666,7 +661,7 @@ export default function Cozinha() {
 
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 lg:mx-auto lg:mb-8 lg:max-w-4xl">
           <div className="min-w-0 flex-1">
-            <SeletorAbaCozinha
+            <AbasCozinha
               aba={aba}
               onChange={(novaAba) => {
                 setAba(novaAba)
@@ -699,7 +694,11 @@ export default function Cozinha() {
           </p>
         )}
 
-        <div className="-mx-3 flex min-h-0 flex-1 items-stretch gap-4 overflow-x-auto overscroll-x-contain px-3 pb-3 pt-1 snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:gap-5 sm:px-6 lg:mx-auto lg:max-w-7xl lg:flex-none lg:grid lg:grid-cols-[repeat(auto-fit,minmax(280px,320px))] lg:items-start lg:justify-center lg:justify-items-center lg:gap-6 lg:overflow-visible lg:px-8 lg:pb-0 lg:snap-none">
+        <div
+          id="painel-cozinha"
+          role="tabpanel"
+          aria-labelledby={`aba-cozinha-${aba}`}
+          className="-mx-3 flex min-h-0 flex-1 items-stretch gap-4 overflow-x-auto overscroll-x-contain px-3 pb-3 pt-1 snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:gap-5 sm:px-6 lg:mx-auto lg:max-w-7xl lg:flex-none lg:grid lg:grid-cols-[repeat(auto-fit,minmax(280px,320px))] lg:items-start lg:justify-center lg:justify-items-center lg:gap-6 lg:overflow-visible lg:px-8 lg:pb-0 lg:snap-none">
           {pedidosFiltrados.length > 0 ? (
             pedidosFiltrados.map((pedido) => (
               <PedidoCard
