@@ -4,6 +4,7 @@ import {
   Banknote,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   CircleDollarSign,
   ClipboardPen,
   CreditCard,
@@ -261,10 +262,10 @@ const secoes: SecaoCardapio[] = [
 ]
 
 const pagamentos = [
-  { id: 'pix', label: 'Pix', icon: <QrCode size={19} /> },
-  { id: 'credito', label: 'Crédito', icon: <CreditCard size={19} /> },
-  { id: 'dinheiro', label: 'Dinheiro', icon: <Banknote size={19} /> },
-  { id: 'debito', label: 'Débito', icon: <CircleDollarSign size={19} /> },
+  { id: 'pix', label: 'Pix', icon: <QrCode size={18} /> },
+  { id: 'credito', label: 'Crédito', icon: <CreditCard size={18} /> },
+  { id: 'dinheiro', label: 'Dinheiro', icon: <Banknote size={18} /> },
+  { id: 'debito', label: 'Débito', icon: <CircleDollarSign size={18} /> },
 ]
 
 function moeda(valor: number) {
@@ -294,6 +295,7 @@ export default function AnotarPedidos() {
   const [resumoKey, setResumoKey] = useState(0)
   const [usarDescontoFidelidade, setUsarDescontoFidelidade] = useState(false)
   const [unidadePendente, setUnidadePendente] = useState<number | null>(null)
+  const [resumoVisivel, setResumoVisivel] = useState(false)
 
   useEffect(() => {
     let ativo = true
@@ -348,7 +350,23 @@ export default function AnotarPedidos() {
     return () => window.clearInterval(intervalo)
   }, [unidadeId])
 
+  useEffect(() => {
+    const elementoResumo = document.getElementById('resumo-pedido')
+    if (!elementoResumo) return
+
+    const observer = new IntersectionObserver(
+      ([entrada]) => setResumoVisivel(entrada.isIntersecting),
+      { threshold: 0.2 },
+    )
+    observer.observe(elementoResumo)
+
+    return () => observer.disconnect()
+  }, [resumoKey])
+
   const subtotal = useMemo(() => pedido.reduce((total, item) => total + item.preco * item.quantidade, 0), [pedido])
+  const pedidoSelecionado = pedidosAbertos.find((item) => item.id === pedidoAbertoId)
+  const itensRegistrados = pedidoSelecionado?.itens.filter((item) => item.status !== 'cancelado') ?? []
+  const pedidoEmPreparo = itensRegistrados.some((item) => item.status === 'preparando')
   const cardapio = secoesApi.length ? secoesApi : secoes
   const secoesFiltradas = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR')
@@ -539,12 +557,14 @@ export default function AnotarPedidos() {
       setNomeComanda('')
       setClientePedido(null)
       setUsarDescontoFidelidade(false)
+      setPagamento('pix')
       return
     }
     const pedidoAberto = pedidosAbertos.find((item) => item.id === id)
     if (pedidoAberto) {
       setNomeComanda(pedidoAberto.nome_comanda)
       setUsarDescontoFidelidade(pedidoAberto.pontos_fidelidade_utilizados > 0)
+      setPagamento(pedidoAberto.forma_pagamento ?? 'pix')
     }
   }
 
@@ -557,6 +577,7 @@ export default function AnotarPedidos() {
     setNomeComanda('')
     setClientePedido(null)
     setUsarDescontoFidelidade(false)
+    setPagamento('pix')
     setMensagemPedido('')
   }
 
@@ -597,15 +618,20 @@ export default function AnotarPedidos() {
     <div className={`min-h-screen bg-[#f5f7fb] text-[#18212f] ${CLASSE_OFFSET_BARRA_ADMIN}`}>
       <BarraDeNavegacaoAdmin
         acaoDireita={
-          <div className="flex items-center gap-2 text-xs font-semibold text-white/70 lg:hidden">
+          <button
+            type="button"
+            onClick={() => document.getElementById('resumo-pedido')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="flex items-center gap-2 text-xs font-semibold text-white/70 transition hover:text-white lg:hidden"
+            aria-label="Ir para o resumo do pedido"
+          >
             <ShoppingBag size={17} /> {pedido.reduce((total, item) => total + item.quantidade, 0)} itens
-          </div>
+          </button>
         }
       />
 
       <div className="mx-auto grid max-w-[1900px] lg:grid-cols-[230px_minmax(0,1fr)_360px]">
-        <aside className="hidden min-h-[calc(100vh-4rem)] border-r border-slate-200 bg-[#f5f7fb] px-4 py-8 lg:block">
-          <div className="flex items-center justify-between gap-2">
+        <aside className="hidden border-r border-slate-200 bg-[#f5f7fb] px-4 py-8 lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:flex-col">
+          <div className="flex items-center justify-between gap-2 lg:shrink-0">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Pedidos abertos</p>
               <p className="mt-1 text-[10px] text-slate-400">Ainda não finalizados</p>
@@ -613,12 +639,12 @@ export default function AnotarPedidos() {
             <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-amarelo px-2 text-xs font-black text-preto-v1">{pedidosAbertos.length}</span>
           </div>
 
-          <button type="button" onClick={() => abrirPedidoExistente(null)} className={`mt-5 flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${!pedidoAbertoId ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+          <button type="button" onClick={() => abrirPedidoExistente(null)} className={`mt-5 flex w-full items-center gap-3 rounded-xl border p-3 text-left transition lg:shrink-0 ${!pedidoAbertoId ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-preto-v1 text-white"><Plus size={17} /></span>
             <span><span className="block text-xs font-black uppercase">Novo pedido</span><span className="text-[10px] text-slate-400">Iniciar nova comanda</span></span>
           </button>
 
-          <div className="mt-3 max-h-[calc(100vh-13rem)] space-y-2 overflow-y-auto pr-1">
+          <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
             {pedidosAbertos.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-300 bg-white px-3 py-7 text-center">
                 <ReceiptText size={25} className="mx-auto text-slate-300" />
@@ -640,6 +666,24 @@ export default function AnotarPedidos() {
             <label className="flex h-11 w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 shadow-sm sm:max-w-xs"><Search size={18} className="text-slate-400" /><input value={busca} onChange={(event) => setBusca(event.target.value)} className="w-full bg-transparent text-sm outline-none" placeholder="Buscar no cardápio..." /></label>
           </div>
 
+          <ConfiguracaoPedido
+            unidades={unidades}
+            unidadeId={unidadeId}
+            unidadeBloqueada={Boolean(unidadeUsuarioId)}
+            onUnidade={solicitarTrocaUnidade}
+            nomeComanda={nomeComanda}
+            onNomeComanda={setNomeComanda}
+            pedidoAbertoId={pedidoAbertoId}
+            pedidoEmPreparo={pedidoEmPreparo}
+            pontosFidelidadeUtilizados={pedidoSelecionado?.pontos_fidelidade_utilizados ?? 0}
+            fidelidade={fidelidade}
+            onFidelidade={setFidelidade}
+            clientePedido={clientePedido}
+            onCliente={setClientePedido}
+            usarDescontoFidelidade={usarDescontoFidelidade}
+            onUsarDesconto={setUsarDescontoFidelidade}
+          />
+
           {carregandoCardapio && <div className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">Carregando cardápio do backend...</div>}
           {!carregandoCardapio && avisoCardapio && <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">{avisoCardapio}</div>}
 
@@ -650,19 +694,30 @@ export default function AnotarPedidos() {
           ))}
         </main>
 
-        <ResumoPedido key={resumoKey} pedido={pedido} subtotal={subtotal} pagamento={pagamento} fidelidade={fidelidade} unidades={unidades} unidadeId={unidadeId} unidadeBloqueada={Boolean(unidadeUsuarioId)} nomeComanda={nomeComanda} clientePedido={clientePedido} pedidosAbertos={pedidosAbertos} pedidoAbertoId={pedidoAbertoId} usarDescontoFidelidade={usarDescontoFidelidade} finalizando={finalizando} editandoItemId={editandoItemId} mensagemPedido={mensagemPedido} onPagamento={setPagamento} onFidelidade={setFidelidade} onQuantidade={alterarQuantidade} onEditarItemRegistrado={editarItemRegistrado} onAtualizarObservacao={atualizarObservacaoItemRegistrado} onUnidade={solicitarTrocaUnidade} onNomeComanda={setNomeComanda} onCliente={setClientePedido} onUsarDesconto={setUsarDescontoFidelidade} onSalvarAberto={salvarPedidoAberto} onFinalizar={finalizarPedido} />
+        <ResumoPedido key={resumoKey} pedido={pedido} subtotal={subtotal} pagamento={pagamento} pedidoSelecionado={pedidoSelecionado} itensRegistrados={itensRegistrados} pedidoEmPreparo={pedidoEmPreparo} pedidoAbertoId={pedidoAbertoId} usarDescontoFidelidade={usarDescontoFidelidade} finalizando={finalizando} editandoItemId={editandoItemId} mensagemPedido={mensagemPedido} onPagamento={setPagamento} onQuantidade={alterarQuantidade} onEditarItemRegistrado={editarItemRegistrado} onAtualizarObservacao={atualizarObservacaoItemRegistrado} onSalvarAberto={salvarPedidoAberto} onFinalizar={finalizarPedido} />
       </div>
 
-      <button
-        type="button"
-        onClick={() =>
-          document.getElementById('resumo-pedido')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
-        className="fixed bottom-5 left-1/2 z-40 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full bg-emerald-600 text-white shadow-[0_8px_24px_rgba(5,150,105,0.35)] transition hover:brightness-95 active:scale-95 lg:hidden"
-        aria-label="Ir para o resumo do pedido"
-      >
-        <ChevronDown size={24} strokeWidth={2.5} />
-      </button>
+      {!resumoVisivel && (
+        <button
+          type="button"
+          onClick={() => document.getElementById('resumo-pedido')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          className="fixed bottom-5 left-1/2 z-40 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full bg-emerald-600 text-white shadow-[0_8px_24px_rgba(5,150,105,0.35)] transition hover:brightness-95 active:scale-95 lg:hidden"
+          aria-label="Ir para o resumo do pedido"
+        >
+          <ChevronDown size={24} strokeWidth={2.5} />
+        </button>
+      )}
+
+      {resumoVisivel && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed top-20 left-1/2 z-40 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full bg-emerald-600 text-white shadow-[0_8px_24px_rgba(5,150,105,0.35)] transition hover:brightness-95 active:scale-95 lg:hidden"
+          aria-label="Voltar ao topo da página"
+        >
+          <ChevronUp size={24} strokeWidth={2.5} />
+        </button>
+      )}
 
       {produtoEmConfiguracao && <ModalConfiguracao produto={produtoEmConfiguracao} onFechar={() => setProdutoEmConfiguracao(null)} onAdicionar={(item) => { adicionarAoPedido(item); setProdutoEmConfiguracao(null) }} />}
 
@@ -724,8 +779,9 @@ function ModalConfiguracao({ produto, onFechar, onAdicionar }: { produto: Produt
     const nomeBase = variacao?.nome ?? produto.nome
     const descricaoBase = variacao?.descricao ?? produto.descricao
     const idAdicionais = adicionaisEscolhidos.map((adicional) => adicional.id).sort((a, b) => a - b).join('+')
+    const idObservacao = observacao.trim() ? encodeURIComponent(observacao.trim()) : ''
     onAdicionar({
-      id: [produto.id, variacao?.id, combo ? 'combo' : 'individual', combo ? bebida : '', idAdicionais].filter(Boolean).join(':'),
+      id: [produto.id, variacao?.id, combo ? 'combo' : 'individual', combo ? bebida : '', idAdicionais, idObservacao].filter(Boolean).join(':'),
       nome: combo ? `Combo ${nomeBase}` : nomeBase,
       descricao: combo ? `${descricaoBase} | Paraiba Chips + ${bebida}` : descricaoBase,
       preco: precoFinal,
@@ -895,7 +951,39 @@ function BotaoOpcao({ ativo, titulo, descricao, preco, marcador, onClick }: { at
   return <button type="button" onClick={onClick} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${ativo ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-black ${ativo ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{marcador ?? <span className={`h-3 w-3 rounded-full border-2 ${ativo ? 'border-white bg-white' : 'border-slate-300'}`} />}</span><span className="min-w-0 flex-1"><span className="block text-sm font-black">{titulo}</span>{descricao && <span className="mt-0.5 block text-xs text-slate-400">{descricao}</span>}</span>{preco !== undefined && <strong className="whitespace-nowrap text-sm">{moeda(preco)}</strong>}</button>
 }
 
-function ResumoPedido({ pedido, subtotal, pagamento, fidelidade, unidades, unidadeId, unidadeBloqueada, nomeComanda, clientePedido, pedidosAbertos, pedidoAbertoId, usarDescontoFidelidade, finalizando, editandoItemId, mensagemPedido, onPagamento, onFidelidade, onQuantidade, onEditarItemRegistrado, onAtualizarObservacao, onUnidade, onNomeComanda, onCliente, onUsarDesconto, onSalvarAberto, onFinalizar }: { pedido: ItemPedido[]; subtotal: number; pagamento: string; fidelidade: 'cadastro' | 'sem-cadastro'; unidades: Unidade[]; unidadeId: number | null; unidadeBloqueada: boolean; nomeComanda: string; clientePedido: ClienteVinculado | null; pedidosAbertos: PedidoApi[]; pedidoAbertoId: number | null; usarDescontoFidelidade: boolean; finalizando: boolean; editandoItemId: number | null; mensagemPedido: string; onPagamento: (valor: string) => void; onFidelidade: (valor: 'cadastro' | 'sem-cadastro') => void; onQuantidade: (id: string, quantidade: number) => void; onEditarItemRegistrado: (item: PedidoApi['itens'][number], acao: 'adicionar' | 'remover' | 'excluir') => void; onAtualizarObservacao: (itemId: number, observacao: string | null) => Promise<void>; onUnidade: (id: number) => void; onNomeComanda: (nome: string) => void; onCliente: (cliente: ClienteVinculado | null) => void; onUsarDesconto: (usar: boolean) => void; onSalvarAberto: () => void; onFinalizar: () => void }) {
+function ConfiguracaoPedido({
+  unidades,
+  unidadeId,
+  unidadeBloqueada,
+  onUnidade,
+  nomeComanda,
+  onNomeComanda,
+  pedidoAbertoId,
+  pedidoEmPreparo,
+  pontosFidelidadeUtilizados,
+  fidelidade,
+  onFidelidade,
+  clientePedido,
+  onCliente,
+  usarDescontoFidelidade,
+  onUsarDesconto,
+}: {
+  unidades: Unidade[]
+  unidadeId: number | null
+  unidadeBloqueada: boolean
+  onUnidade: (id: number) => void
+  nomeComanda: string
+  onNomeComanda: (nome: string) => void
+  pedidoAbertoId: number | null
+  pedidoEmPreparo: boolean
+  pontosFidelidadeUtilizados: number
+  fidelidade: 'cadastro' | 'sem-cadastro'
+  onFidelidade: (valor: 'cadastro' | 'sem-cadastro') => void
+  clientePedido: ClienteVinculado | null
+  onCliente: (cliente: ClienteVinculado | null) => void
+  usarDescontoFidelidade: boolean
+  onUsarDesconto: (usar: boolean) => void
+}) {
   const [identificacao, setIdentificacao] = useState('')
   const [clienteVinculado, setClienteVinculado] = useState<FidelidadeCliente | null>(null)
   const [consultandoCliente, setConsultandoCliente] = useState(false)
@@ -904,18 +992,6 @@ function ResumoPedido({ pedido, subtotal, pagamento, fidelidade, unidades, unida
   const [telefone, setTelefone] = useState('')
   const [cadastroConcluido, setCadastroConcluido] = useState(false)
   const [erroFidelidade, setErroFidelidade] = useState('')
-  const [obsEditando, setObsEditando] = useState<{ itemId: number; texto: string } | null>(null)
-  const [salvandoObs, setSalvandoObs] = useState(false)
-  const pedidoSelecionado = pedidosAbertos.find((item) => item.id === pedidoAbertoId)
-  const itensRegistrados = pedidoSelecionado?.itens.filter((item) => item.status !== 'cancelado') ?? []
-  const pedidoEmPreparo = itensRegistrados.some((item) => item.status === 'preparando')
-  const descontoExistente = Number(pedidoSelecionado?.desconto_fidelidade ?? 0)
-  const descontoNovo = !pedidoAbertoId && usarDescontoFidelidade
-    ? Math.min(VALOR_DESCONTO_FIDELIDADE, subtotal)
-    : 0
-  const descontoExibido = descontoExistente || descontoNovo
-  const totalAtual = Number(pedidoSelecionado?.total ?? 0)
-  const totalParaFinalizar = Math.max(totalAtual + subtotal - descontoNovo, 0)
 
   function mudarFidelidade(valor: 'cadastro' | 'sem-cadastro') {
     onFidelidade(valor)
@@ -966,51 +1042,59 @@ function ResumoPedido({ pedido, subtotal, pagamento, fidelidade, unidades, unida
   }
 
   return (
-    <aside id="resumo-pedido" className="scroll-mt-20 border-t border-slate-200 bg-white lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:flex-col lg:border-l lg:border-t-0 lg:scroll-mt-0">
-      <div className="border-b border-slate-200 px-6 py-6">
-        <h2 className="font-barlow-condensed text-xl font-black uppercase">Resumo do pedido</h2>
-        <p className="mt-1 text-xs text-slate-400">Confira os itens antes de finalizar.</p>
-      </div>
+    <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+      <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Dados do pedido</p>
 
-      <div className="flex-1 overflow-y-auto px-5 py-5">
-        <div className="mb-5 grid gap-2">
+      {pedidoAbertoId && (
+        <p className={`mb-4 rounded-lg px-3 py-2 text-xs font-semibold ${pedidoEmPreparo ? 'bg-blue-50 text-blue-800' : 'bg-amber-50 text-amber-800'}`}>
+          {pedidoEmPreparo ? `O pedido #${pedidoAbertoId} já está sendo preparado e não pode mais ser alterado.` : `Editando o pedido #${pedidoAbertoId}. Se ele já estiver pago, será reaberto e precisará de novo fechamento.`}
+        </p>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[200px_240px_minmax(280px,1fr)]">
+        <div className="flex flex-col gap-1.5">
           <label className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Unidade</label>
-          <select value={unidadeId ?? ''} onChange={(event) => onUnidade(Number(event.target.value))} disabled={unidadeBloqueada} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500">
+          <select value={unidadeId ?? ''} onChange={(event) => onUnidade(Number(event.target.value))} disabled={unidadeBloqueada} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500">
             <option value="">Selecione</option>
             {unidades.map((unidade) => <option key={unidade.id} value={unidade.id}>{unidade.nome}</option>)}
           </select>
-          {pedidoAbertoId && <p className={`rounded-lg px-3 py-2 text-[10px] font-semibold ${pedidoEmPreparo ? 'bg-blue-50 text-blue-800' : 'bg-amber-50 text-amber-800'}`}>{pedidoEmPreparo ? `O pedido #${pedidoAbertoId} já está sendo preparado e não pode mais ser alterado.` : `Editando o pedido #${pedidoAbertoId}. Se ele já estiver pago, será reaberto e precisará de novo fechamento.`}</p>}
-          <label className="mt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Nome da comanda</label>
-          <input value={nomeComanda} onChange={(event) => onNomeComanda(event.target.value)} disabled={Boolean(pedidoAbertoId)} placeholder="Ex.: Mesa 3 ou Samuel" className="h-10 rounded-lg border border-slate-200 px-3 text-xs outline-none focus:border-emerald-500 disabled:bg-slate-100" />
-        </div>
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Programa fidelidade</p>
-        <div className="grid grid-cols-2 gap-2">
-          <BotaoEscolha ativo={fidelidade === 'cadastro'} onClick={() => mudarFidelidade('cadastro')} titulo="Tem cadastro" texto="Ja e cliente fidelidade" />
-          <BotaoEscolha ativo={fidelidade === 'sem-cadastro'} onClick={() => mudarFidelidade('sem-cadastro')} titulo="Sem cadastro" texto="Pode cadastrar agora" />
         </div>
 
-        {fidelidade === 'cadastro' && (
-          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-            {clienteVinculado ? (
-              <SaldoFidelidade cliente={clienteVinculado} onAlterar={() => { setClienteVinculado(null); onCliente(null) }} />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Nome da comanda</label>
+          <input value={nomeComanda} onChange={(event) => onNomeComanda(event.target.value)} disabled={Boolean(pedidoAbertoId)} placeholder="Ex.: Mesa 3 ou Samuel" className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-100" />
+        </div>
+
+        <div className="sm:col-span-2 lg:col-span-1">
+          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Programa fidelidade</p>
+          <div className="grid grid-cols-2 gap-2">
+            <BotaoEscolha ativo={fidelidade === 'cadastro'} onClick={() => mudarFidelidade('cadastro')} titulo="Tem cadastro" texto="Ja e cliente fidelidade" />
+            <BotaoEscolha ativo={fidelidade === 'sem-cadastro'} onClick={() => mudarFidelidade('sem-cadastro')} titulo="Sem cadastro" texto="Pode cadastrar agora" />
+          </div>
+
+          {fidelidade === 'cadastro' && (
+            clienteVinculado ? (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <SaldoFidelidade cliente={clienteVinculado} onAlterar={() => { setClienteVinculado(null); onCliente(null) }} />
+              </div>
             ) : (
-              <>
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Telefone ou e-mail</label>
                 <div className="mt-2 flex gap-2">
                   <CampoComIcone icone={<Search size={15} />} valor={identificacao} onChange={setIdentificacao} placeholder="Buscar cliente..." />
                   <button type="button" onClick={vincularCliente} disabled={consultandoCliente} className="rounded-lg bg-preto-v1 px-3 text-[10px] font-black uppercase text-white disabled:opacity-60">{consultandoCliente ? 'Buscando...' : 'Buscar'}</button>
                 </div>
-              </>
-            )}
-          </div>
-        )}
+              </div>
+            )
+          )}
 
-        {fidelidade === 'sem-cadastro' && (
-          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-            {cadastroConcluido ? (
-              <MensagemSucesso icone={<CheckCircle2 size={18} />} titulo="Cliente cadastrado" texto={`${email} | ${telefone}`} onAlterar={() => setCadastroConcluido(false)} />
+          {fidelidade === 'sem-cadastro' && (
+            cadastroConcluido ? (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <MensagemSucesso icone={<CheckCircle2 size={18} />} titulo="Cliente cadastrado" texto={`${email} | ${telefone}`} onAlterar={() => setCadastroConcluido(false)} />
+              </div>
             ) : (
-              <>
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div><p className="text-xs font-bold">Deseja cadastrar o cliente?</p><p className="mt-0.5 text-[10px] text-slate-400">O pedido pode continuar sem cadastro.</p></div>
                   <button type="button" onClick={() => { setQuerCadastrar((valor) => !valor); setErroFidelidade('') }} className={`rounded-lg px-3 py-2 text-[10px] font-black uppercase ${querCadastrar ? 'bg-slate-200 text-slate-600' : 'bg-amarelo text-preto-v1'}`}>{querCadastrar ? 'Agora não' : 'Cadastrar'}</button>
@@ -1033,29 +1117,52 @@ function ResumoPedido({ pedido, subtotal, pagamento, fidelidade, unidades, unida
                     }} className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-[10px] font-black uppercase text-white"><UserPlus size={15} /> Cadastrar e vincular</button>
                   </div>
                 )}
-              </>
-            )}
-          </div>
-        )}
+              </div>
+            )
+          )}
 
-        {erroFidelidade && <p className="mt-2 text-[10px] font-semibold text-red-600">{erroFidelidade}</p>}
-        {clientePedido && clientePedido.pontos >= 10 && (
-          <div className="mt-3 rounded-xl border border-amarelo bg-amber-50 p-3">
-            <label className="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                checked={usarDescontoFidelidade}
-                disabled={Boolean(pedidoAbertoId) && !pedidoSelecionado?.pontos_fidelidade_utilizados}
-                onChange={(event) => onUsarDesconto(event.target.checked)}
-                className="h-4 w-4 accent-emerald-600"
-              />
-              <span className="flex-1"><span className="block text-xs font-black text-preto-v1">Usar hot-dog gratis</span><span className="block text-[10px] text-slate-500">Consome 10 pontos e aplica {moeda(VALOR_DESCONTO_FIDELIDADE)} de desconto.</span></span>
-            </label>
-            {pedidoAbertoId && !pedidoSelecionado?.pontos_fidelidade_utilizados && <p className="mt-2 text-[9px] text-amber-700">O resgate deve ser escolhido ao iniciar um novo pedido.</p>}
-          </div>
-        )}
-        <div className="my-5 h-px bg-slate-100" />
+          {erroFidelidade && <p className="mt-2 text-[10px] font-semibold text-red-600">{erroFidelidade}</p>}
 
+          {clientePedido && clientePedido.pontos >= 10 && (
+            <div className="mt-3 rounded-xl border border-amarelo bg-amber-50 p-3">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={usarDescontoFidelidade}
+                  disabled={Boolean(pedidoAbertoId) && !pontosFidelidadeUtilizados}
+                  onChange={(event) => onUsarDesconto(event.target.checked)}
+                  className="h-4 w-4 accent-emerald-600"
+                />
+                <span className="flex-1"><span className="block text-xs font-black text-preto-v1">Usar hot-dog gratis</span><span className="block text-[10px] text-slate-500">Consome 10 pontos e aplica {moeda(VALOR_DESCONTO_FIDELIDADE)} de desconto.</span></span>
+              </label>
+              {pedidoAbertoId && !pontosFidelidadeUtilizados && <p className="mt-2 text-[9px] text-amber-700">O resgate deve ser escolhido ao iniciar um novo pedido.</p>}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ResumoPedido({ pedido, subtotal, pagamento, pedidoSelecionado, itensRegistrados, pedidoEmPreparo, pedidoAbertoId, usarDescontoFidelidade, finalizando, editandoItemId, mensagemPedido, onPagamento, onQuantidade, onEditarItemRegistrado, onAtualizarObservacao, onSalvarAberto, onFinalizar }: { pedido: ItemPedido[]; subtotal: number; pagamento: string; pedidoSelecionado: PedidoApi | undefined; itensRegistrados: PedidoApi['itens']; pedidoEmPreparo: boolean; pedidoAbertoId: number | null; usarDescontoFidelidade: boolean; finalizando: boolean; editandoItemId: number | null; mensagemPedido: string; onPagamento: (valor: string) => void; onQuantidade: (id: string, quantidade: number) => void; onEditarItemRegistrado: (item: PedidoApi['itens'][number], acao: 'adicionar' | 'remover' | 'excluir') => void; onAtualizarObservacao: (itemId: number, observacao: string | null) => Promise<void>; onSalvarAberto: () => void; onFinalizar: () => void }) {
+  const [obsEditando, setObsEditando] = useState<{ itemId: number; texto: string } | null>(null)
+  const [salvandoObs, setSalvandoObs] = useState(false)
+  const descontoExistente = Number(pedidoSelecionado?.desconto_fidelidade ?? 0)
+  const descontoNovo = !pedidoAbertoId && usarDescontoFidelidade
+    ? Math.min(VALOR_DESCONTO_FIDELIDADE, subtotal)
+    : 0
+  const descontoExibido = descontoExistente || descontoNovo
+  const totalAtual = Number(pedidoSelecionado?.total ?? 0)
+  const totalParaFinalizar = Math.max(totalAtual + subtotal - descontoNovo, 0)
+
+  return (
+    <aside id="resumo-pedido" className="scroll-mt-20 border-t border-slate-200 bg-white lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:flex-col lg:border-l lg:border-t-0 lg:scroll-mt-0">
+      <div className="border-b border-slate-200 px-6 py-6 lg:shrink-0">
+        <h2 className="font-barlow-condensed text-xl font-black uppercase">Resumo do pedido</h2>
+        <p className="mt-1 text-xs text-slate-400">Confira os itens antes de finalizar.</p>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
         {itensRegistrados.length > 0 && (
           <section className="mb-4">
             <div className="mb-2 flex items-center justify-between"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Itens já registrados</p><span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-bold text-slate-500">Pedido #{pedidoAbertoId}</span></div>
@@ -1063,7 +1170,7 @@ function ResumoPedido({ pedido, subtotal, pagamento, fidelidade, unidades, unida
               {itensRegistrados.map((item) => (
                 <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div><p className="text-sm font-bold">{item.quantidade}x {formatarItemPedido(item.produto_nome, item.produto_variacao_nome)}</p><p className="mt-1 text-[10px] text-slate-400">Lote {item.lote}</p>{item.adicionais.length > 0 && <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">+ {item.adicionais.map((adicional) => adicional.nome).join(', ')}</p>}{item.observacao && item.observacao.split('\n').map((linha, i) => <p key={i} className={`mt-0.5 text-[10px] font-semibold ${linha.startsWith('Obs: ') ? 'text-red-500' : 'text-slate-400'}`}>{linha.startsWith('Obs: ') ? `observação: ${linha.slice(5)}` : linha}</p>)}</div>
+                    <div><p className="text-sm font-bold">{item.quantidade}x {formatarItemPedido(item.produto_nome, item.produto_variacao_nome)}</p><p className="mt-1 text-[10px] text-slate-400">Lote {item.lote}</p>{item.adicionais.length > 0 && <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">+ {item.adicionais.map((adicional) => adicional.nome).join(', ')}</p>}<LinhasObservacao observacao={item.observacao} /></div>
                     <span className={`rounded-full px-2 py-1 text-[8px] font-black uppercase ${item.status === 'entregue' ? 'bg-emerald-100 text-emerald-700' : item.status === 'preparando' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{item.status}</span>
                   </div>
                   <div className="mt-3 flex items-center justify-between">
@@ -1137,15 +1244,15 @@ function ResumoPedido({ pedido, subtotal, pagamento, fidelidade, unidades, unida
         {pedido.length === 0 && itensRegistrados.length === 0 ? (
           <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center"><ShoppingBag size={32} strokeWidth={1.5} className="text-slate-300" /><p className="mt-3 text-sm font-bold">Seu pedido está vazio</p><p className="mt-1 text-xs text-slate-400">Adicione produtos do cardápio.</p></div>
         ) : pedido.length > 0 ? (
-          <div className="space-y-3">{pedido.map((item) => <div key={item.id} className="rounded-xl border border-slate-200 p-3"><div className="flex justify-between gap-3"><div><p className="text-sm font-bold">{item.nome}</p><p className="mt-1 text-[10px] leading-4 text-slate-400">{item.descricao}</p>{item.adicionais && item.adicionais.length > 0 && <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">+ {item.adicionais.map((adicional) => adicional.nome).join(', ')}</p>}<p className="mt-1 text-xs text-slate-400">{moeda(item.preco)} cada</p></div><button type="button" onClick={() => onQuantidade(item.id, 0)} className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button></div><div className="mt-3 flex items-center justify-between"><div className="flex items-center overflow-hidden rounded-lg border border-slate-200"><button type="button" onClick={() => onQuantidade(item.id, item.quantidade - 1)} className="p-2"><Minus size={13} /></button><span className="min-w-8 text-center text-xs font-bold">{item.quantidade}</span><button type="button" onClick={() => onQuantidade(item.id, item.quantidade + 1)} className="p-2"><Plus size={13} /></button></div><strong className="text-sm">{moeda(item.preco * item.quantidade)}</strong></div></div>)}</div>
+          <div className="space-y-3">{pedido.map((item) => <div key={item.id} className="rounded-xl border border-slate-200 p-3"><div className="flex justify-between gap-3"><div><p className="text-sm font-bold">{item.nome}</p><p className="mt-1 text-[10px] leading-4 text-slate-400">{item.descricao}</p>{item.adicionais && item.adicionais.length > 0 && <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">+ {item.adicionais.map((adicional) => adicional.nome).join(', ')}</p>}<LinhasObservacao observacao={item.observacao} /><p className="mt-1 text-xs text-slate-400">{moeda(item.preco)} cada</p></div><button type="button" onClick={() => onQuantidade(item.id, 0)} className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button></div><div className="mt-3 flex items-center justify-between"><div className="flex items-center overflow-hidden rounded-lg border border-slate-200"><button type="button" onClick={() => onQuantidade(item.id, item.quantidade - 1)} className="p-2"><Minus size={13} /></button><span className="min-w-8 text-center text-xs font-bold">{item.quantidade}</span><button type="button" onClick={() => onQuantidade(item.id, item.quantidade + 1)} className="p-2"><Plus size={13} /></button></div><strong className="text-sm">{moeda(item.preco * item.quantidade)}</strong></div></div>)}</div>
         ) : null}
       </div>
 
-      <div className="border-t border-slate-200 bg-[#f8faff] p-5">
+      <div className="border-t border-slate-200 bg-[#f8faff] p-5 lg:shrink-0">
         <div className="space-y-2 text-xs text-slate-500"><div className="flex justify-between"><span>Novos itens</span><span>{moeda(subtotal)}</span></div>{pedidoAbertoId && <div className="flex justify-between"><span>Total atual do pedido</span><span>{moeda(totalAtual)}</span></div>}{descontoExibido > 0 && <div className="flex justify-between font-semibold text-emerald-700"><span>Desconto fidelidade</span><span>- {moeda(descontoExibido)}</span></div>}<div className="flex items-end justify-between border-t border-slate-200 pt-3 text-preto-v1"><span className="font-bold">Total para finalizar</span><strong className="text-2xl">{moeda(totalParaFinalizar)}</strong></div></div>
-        <div className="mt-4 grid grid-cols-2 gap-2">{pagamentos.map((item) => <button key={item.id} type="button" onClick={() => onPagamento(item.id)} className={`flex h-14 flex-col items-center justify-center gap-1 rounded-lg border text-[10px] font-bold uppercase ${pagamento === item.id ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white'}`}>{item.icon}{item.label}</button>)}</div>
+        <div className="mt-4 grid grid-cols-4 gap-2">{pagamentos.map((item) => <button key={item.id} type="button" onClick={() => onPagamento(item.id)} className={`flex h-12 flex-col items-center justify-center gap-1 rounded-lg border text-[9px] font-bold uppercase leading-none whitespace-nowrap ${pagamento === item.id ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white'}`}>{item.icon}{item.label}</button>)}</div>
         {mensagemPedido && <p className={`mt-3 text-xs font-semibold ${mensagemPedido.includes('aberto') || mensagemPedido.includes('finalizado') ? 'text-emerald-700' : 'text-red-600'}`}>{mensagemPedido}</p>}
-        <button type="button" onClick={onSalvarAberto} disabled={!pedido.length || finalizando || pedidoEmPreparo} className="mt-4 w-full rounded-xl border-2 border-emerald-600 bg-white px-5 py-3 text-xs font-black uppercase text-emerald-700 disabled:border-slate-300 disabled:text-slate-400">{finalizando ? 'Salvando...' : pedidoAbertoId ? 'Adicionar e manter aberto' : 'Enviar para cozinha e manter aberto'}</button>
+        <button type="button" onClick={onSalvarAberto} disabled={!pedido.length || finalizando || pedidoEmPreparo} className="mt-4 w-full whitespace-nowrap rounded-xl border-2 border-emerald-600 bg-white px-5 py-3 text-xs font-black uppercase text-emerald-700 disabled:border-slate-300 disabled:text-slate-400">{finalizando ? 'Salvando...' : pedidoAbertoId ? 'Adicionar e manter aberto' : 'Enviar e manter aberto'}</button>
         <button type="button" onClick={onFinalizar} disabled={(!pedido.length && !pedidoAbertoId) || finalizando || pedidoEmPreparo} className="mt-2 w-full rounded-xl bg-emerald-600 px-5 py-4 text-sm font-black uppercase text-white disabled:bg-slate-300">{finalizando ? 'Finalizando...' : 'Finalizar e receber pagamento'}</button>
       </div>
     </aside>
@@ -1160,6 +1267,19 @@ function formatarItemPedido(produto: string, variacao: string | null) {
   const nomeProduto = formatarNome(produto)
   if (!variacao || normalizarTexto(variacao) === 'unico') return nomeProduto
   return `${nomeProduto} - ${variacao}`
+}
+
+function LinhasObservacao({ observacao }: { observacao: string | null | undefined }) {
+  if (!observacao) return null
+  return (
+    <>
+      {observacao.split('\n').map((linha, i) => (
+        <p key={i} className={`mt-0.5 text-[10px] font-semibold ${linha.startsWith('Obs: ') ? 'text-red-500' : 'text-slate-400'}`}>
+          {linha.startsWith('Obs: ') ? `observação: ${linha.slice(5)}` : linha}
+        </p>
+      ))}
+    </>
+  )
 }
 
 function MensagemSucesso({ icone, titulo, texto, onAlterar }: { icone: ReactNode; titulo: string; texto: string; onAlterar: () => void }) {
@@ -1186,8 +1306,8 @@ function SaldoFidelidade({ cliente, onAlterar }: { cliente: FidelidadeCliente; o
   )
 }
 
-function BotaoEscolha({ ativo, onClick, titulo, texto }: { ativo: boolean; onClick: () => void; titulo: string; texto: string }) {
-  return <button type="button" onClick={onClick} className={`rounded-lg border p-3 text-left transition ${ativo ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}><span className="flex items-center gap-2 text-xs font-bold"><span className={`h-3 w-3 rounded-full border-2 ${ativo ? 'border-emerald-500 bg-emerald-500 shadow-[inset_0_0_0_2px_white]' : 'border-slate-300'}`} />{titulo}</span><span className="mt-1 block pl-5 text-[9px] text-slate-400">{texto}</span></button>
+function BotaoEscolha({ ativo, onClick, titulo, texto }: { ativo: boolean; onClick: () => void; titulo: string; texto?: string }) {
+  return <button type="button" onClick={onClick} className={`rounded-lg border p-3 text-left transition ${ativo ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}><span className="flex items-center gap-2 text-xs font-bold"><span className={`h-3 w-3 shrink-0 rounded-full border-2 ${ativo ? 'border-emerald-500 bg-emerald-500 shadow-[inset_0_0_0_2px_white]' : 'border-slate-300'}`} />{titulo}</span>{texto && <span className="mt-1 block pl-5 text-[9px] text-slate-400">{texto}</span>}</button>
 }
 
 function mapearCardapioApi(

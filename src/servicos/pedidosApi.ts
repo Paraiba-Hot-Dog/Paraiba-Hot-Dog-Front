@@ -8,6 +8,7 @@ export type PedidoApi = {
   nome_comanda: string
   cliente_id: number | null
   status: string
+  forma_pagamento: FormaPagamentoApi | null
   subtotal: string
   desconto_fidelidade: string
   total: string
