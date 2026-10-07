@@ -6,7 +6,6 @@ import type { ProdutoCardapio, SecaoCardapio } from "../../model/cardapio";
 import { listarSecoesCardapio } from "../../repository/cardapioRepository";
 import { listarUnidades, type Unidade } from "../../servicos/api";
 
-// Folga entre a navegacao fixa e o titulo da secao ao saltar por ancora.
 const MARGEM_ANCORA_EXTRA = 24;
 
 const formatadorPreco = new Intl.NumberFormat("pt-BR", {
