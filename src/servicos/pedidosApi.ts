@@ -8,6 +8,7 @@ export type PedidoApi = {
   nome_comanda: string
   cliente_id: number | null
   status: string
+  forma_pagamento: FormaPagamentoApi | null
   subtotal: string
   desconto_fidelidade: string
   total: string
@@ -23,6 +24,12 @@ export type PedidoApi = {
     observacao: string | null
     lote: number
     status: 'aberto' | 'preparando' | 'entregue' | 'cancelado'
+    adicionais: Array<{
+      id: number
+      adicional_id: number | null
+      nome: string
+      preco: string
+    }>
   }>
 }
 
