@@ -108,6 +108,13 @@ export default function Login() {
               </div>
             </div>
 
+            <a
+              href="/esqueci-senha"
+              className="self-end font-barlow text-sm font-semibold text-cinza-base transition-colors hover:text-amarelo"
+            >
+              Esqueci a senha
+            </a>
+
             <button
               type="submit"
               disabled={loading}

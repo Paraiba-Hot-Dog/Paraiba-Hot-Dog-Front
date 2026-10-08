@@ -40,22 +40,26 @@ export async function solicitarRecuperacaoSenha(email: string) {
   const result = (await response.json()) as {
     email_status: string
     message: string
-  }
-
-  if (result.email_status !== 'sent') {
-    throw new Error(`Password recovery email not sent: ${result.email_status}`)
+    aguardar_segundos?: number
+    link_valido_minutos?: number
+    intervalo_segundos?: number
+    limite_por_hora?: number
   }
 
   return result
 }
 
-export async function redefinirSenha(token: string, novaSenha: string) {
+export async function redefinirSenha(
+  novaSenha: string,
+  credencial: { token?: string; accessToken?: string },
+) {
   const response = await apiFetch('/auth/redefinir-senha', {
     auth: false,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      token,
+      token: credencial.token || undefined,
+      access_token: credencial.accessToken || undefined,
       nova_senha: novaSenha,
     }),
   })

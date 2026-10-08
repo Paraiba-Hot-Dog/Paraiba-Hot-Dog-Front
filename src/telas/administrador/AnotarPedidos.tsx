@@ -1,10 +1,10 @@
+import CampoObrigatorio from '../../componentes/compartilhados/CampoObrigatorio'
+import Toast, { type Notificacao } from '../../componentes/compartilhados/Toast'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   AlertTriangle,
   Banknote,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   CircleDollarSign,
   ClipboardPen,
   CreditCard,
@@ -20,6 +20,8 @@ import {
   UserCheck,
   UserPlus,
   X,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import BarraDeNavegacaoAdmin, {
   CLASSE_OFFSET_BARRA_ADMIN,
@@ -272,6 +274,7 @@ function moeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+
 export default function AnotarPedidos() {
   const { usuarioAtual, isLoadingUser } = useAuth()
   const unidadeUsuarioId = usuarioAtual?.unidade_id ?? null
@@ -289,7 +292,17 @@ export default function AnotarPedidos() {
   const [nomeComanda, setNomeComanda] = useState('')
   const [finalizando, setFinalizando] = useState(false)
   const [editandoItemId, setEditandoItemId] = useState<number | null>(null)
-  const [mensagemPedido, setMensagemPedido] = useState('')
+  const [mensagemPedido, definirMensagemPedido] = useState('')
+  const [tipoMensagemPedido, setTipoMensagemPedido] = useState<'sucesso' | 'erro' | 'info'>('info')
+  const [notificacao, setNotificacao] = useState<Notificacao | null>(null)
+  function setMensagemPedido(mensagem: string, tipo: 'sucesso' | 'erro' | 'info' = 'erro') {
+    definirMensagemPedido(mensagem)
+    setTipoMensagemPedido(tipo)
+  }
+  function confirmarPedido(mensagem: string) {
+    setMensagemPedido(mensagem, 'sucesso')
+    setNotificacao({ id: Date.now(), mensagem, tipo: 'sucesso' })
+  }
   const [pedidosAbertos, setPedidosAbertos] = useState<PedidoApi[]>([])
   const [pedidoAbertoId, setPedidoAbertoId] = useState<number | null>(null)
   const [resumoKey, setResumoKey] = useState(0)
@@ -454,7 +467,7 @@ export default function AnotarPedidos() {
   }
 
   async function salvarPedidoAberto() {
-    if (!validarPedido(true) || !unidadeId) return
+    if (finalizando || !validarPedido(true) || !unidadeId) return
 
     setFinalizando(true)
     try {
@@ -469,7 +482,7 @@ export default function AnotarPedidos() {
           })
       setPedidoAbertoId(salvo.id)
       setPedido([])
-      setMensagemPedido(`Pedido #${salvo.id} mantido aberto e enviado para a cozinha.`)
+      confirmarPedido(`Pedido #${salvo.id} mantido aberto e enviado para a cozinha.`)
       await carregarPedidosAbertos(unidadeId)
     } catch (error) {
       setMensagemPedido(error instanceof Error ? error.message : 'Não foi possível salvar o pedido.')
@@ -489,7 +502,7 @@ export default function AnotarPedidos() {
       } else {
         await cancelarItemPedidoApi(item.id, acao === 'remover' ? 1 : undefined)
       }
-      setMensagemPedido(`Pedido #${pedidoAbertoId} atualizado com sucesso.`)
+      setMensagemPedido(`Pedido #${pedidoAbertoId} atualizado com sucesso.`, 'sucesso')
       await carregarPedidosAbertos(unidadeId)
     } catch (error) {
       setMensagemPedido(error instanceof Error ? error.message : 'Não foi possível alterar o item.')
@@ -502,7 +515,7 @@ export default function AnotarPedidos() {
     if (!unidadeId) return
     try {
       await atualizarObservacaoItemPedidoApi(itemId, observacao)
-      setMensagemPedido('Observação atualizada.')
+      setMensagemPedido('Observação atualizada.', 'sucesso')
       await carregarPedidosAbertos(unidadeId)
     } catch (error) {
       setMensagemPedido(error instanceof Error ? error.message : 'Não foi possível atualizar a observação.')
@@ -511,7 +524,7 @@ export default function AnotarPedidos() {
 
   async function finalizarPedido() {
     const exigeItens = !pedidoAbertoId
-    if (!validarPedido(exigeItens) || !unidadeId) return
+    if (finalizando || !validarPedido(exigeItens) || !unidadeId) return
 
     setFinalizando(true)
     try {
@@ -544,7 +557,7 @@ export default function AnotarPedidos() {
       setFidelidade('cadastro')
       setUsarDescontoFidelidade(false)
       setResumoKey((valor) => valor + 1)
-      setMensagemPedido(`Pedido #${finalizado.id} finalizado e enviado para a cozinha.`)
+      confirmarPedido(`Pedido #${finalizado.id} finalizado e enviado para a cozinha.`)
       await carregarPedidosAbertos(unidadeId)
     } catch (error) {
       setMensagemPedido(error instanceof Error ? error.message : 'Não foi possível finalizar o pedido.')
@@ -665,9 +678,12 @@ export default function AnotarPedidos() {
         </aside>
 
         <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-7 lg:py-8">
-          <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="sticky top-16 z-30 -mx-4 mb-7 bg-[#f5f7fb] px-4 py-3 sm:-mx-6 sm:px-6 lg:-mx-7 lg:px-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div><div className="flex items-center gap-2 text-sm font-semibold text-emerald-600"><ClipboardPen size={18} /> Novo pedido</div><h1 className="mt-1 font-barlow-condensed text-3xl font-black uppercase">Anotar pedidos</h1></div>
-            <label className="flex h-11 w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 shadow-sm sm:max-w-xs"><Search size={18} className="text-slate-400" /><input value={busca} onChange={(event) => setBusca(event.target.value)} className="w-full bg-transparent text-sm outline-none" placeholder="Buscar no cardápio..." /></label>
+            <label className="flex h-11 w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 shadow-sm sm:max-w-xs"><Search size={18} className="text-slate-400" /><input value={busca} onChange={(event) => setBusca(event.target.value)} className="w-full bg-transparent text-sm outline-none" aria-label="Buscar no cardápio" placeholder="Buscar no cardápio..." /></label>
+          </div>
+          <nav aria-label="Categorias do cardápio" className="mt-3 flex gap-2 overflow-x-auto pb-1">{cardapio.map((secao) => <a key={secao.id} href={`#${secao.id}`} className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold">{secao.titulo}</a>)}</nav>
           </div>
 
           <ConfiguracaoPedido
@@ -691,6 +707,8 @@ export default function AnotarPedidos() {
           {carregandoCardapio && <div className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">Carregando cardápio do backend...</div>}
           {!carregandoCardapio && avisoCardapio && <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">{avisoCardapio}</div>}
 
+          {!carregandoCardapio && busca.trim() && !secoesFiltradas.length && !avisoCardapio && <div role="status" className="rounded-xl border border-slate-200 bg-white p-8 text-center"><h2 className="font-bold">Nenhum item encontrado</h2><p className="mt-2 text-sm text-slate-500">Tente outro termo para encontrar seu produto.</p><button type="button" onClick={() => setBusca('')} className="mt-4 rounded-lg bg-amarelo px-4 py-2 font-semibold">Limpar busca</button></div>}
+          {!carregandoCardapio && busca.trim() && !secoesFiltradas.length && avisoCardapio && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center"><p className="font-bold">Nenhum item encontrado no cardápio de demonstração</p><p className="mt-2 text-sm">Os produtos reais não estão disponíveis nesta visualização.</p><button type="button" onClick={() => setBusca('')} className="mt-4 rounded-lg bg-amarelo px-4 py-2 font-semibold">Limpar busca</button></div>}
           {secoesFiltradas.map((secao) => (
             <SecaoProdutos key={secao.id} id={secao.id} titulo={secao.titulo} subtitulo={secao.subtitulo}>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{secao.produtos.map((produto) => <CardProduto key={produto.id} produto={produto} onAdicionar={adicionar} />)}</div>
@@ -698,7 +716,7 @@ export default function AnotarPedidos() {
           ))}
         </main>
 
-        <ResumoPedido key={resumoKey} pedido={pedido} subtotal={subtotal} pagamento={pagamento} pedidoSelecionado={pedidoSelecionado} itensRegistrados={itensRegistrados} pedidoEmPreparo={pedidoEmPreparo} pedidoAbertoId={pedidoAbertoId} usarDescontoFidelidade={usarDescontoFidelidade} finalizando={finalizando} editandoItemId={editandoItemId} mensagemPedido={mensagemPedido} onPagamento={setPagamento} onQuantidade={alterarQuantidade} onEditarItemRegistrado={editarItemRegistrado} onAtualizarObservacao={atualizarObservacaoItemRegistrado} onSalvarAberto={salvarPedidoAberto} onFinalizar={finalizarPedido} />
+        <ResumoPedido key={resumoKey} tipoMensagemPedido={tipoMensagemPedido} pedido={pedido} subtotal={subtotal} pagamento={pagamento} pedidoSelecionado={pedidoSelecionado} itensRegistrados={itensRegistrados} pedidoEmPreparo={pedidoEmPreparo} pedidoAbertoId={pedidoAbertoId} usarDescontoFidelidade={usarDescontoFidelidade} finalizando={finalizando} editandoItemId={editandoItemId} mensagemPedido={mensagemPedido} onPagamento={setPagamento} onQuantidade={alterarQuantidade} onEditarItemRegistrado={editarItemRegistrado} onAtualizarObservacao={atualizarObservacaoItemRegistrado} onSalvarAberto={salvarPedidoAberto} onFinalizar={finalizarPedido} />
       </div>
 
       {!resumoVisivel && (
@@ -723,6 +741,8 @@ export default function AnotarPedidos() {
         </button>
       )}
 
+      {notificacao && <Toast key={notificacao.id} notificacao={notificacao} onFechar={() => setNotificacao(null)} />}
+
       {produtoEmConfiguracao && <ModalConfiguracao produto={produtoEmConfiguracao} onFechar={() => setProdutoEmConfiguracao(null)} onAdicionar={(item) => { adicionarAoPedido(item); setProdutoEmConfiguracao(null) }} />}
 
       {unidadePendente !== null && (
@@ -737,7 +757,7 @@ export default function AnotarPedidos() {
 }
 
 function SecaoProdutos({ id, titulo, subtitulo, children }: { id: string; titulo: string; subtitulo: string; children: ReactNode }) {
-  return <section id={id} className="mb-10 scroll-mt-6"><h2 className="font-barlow-condensed text-2xl font-black">{titulo}</h2><p className="mb-4 mt-1 text-xs text-slate-400">{subtitulo}</p>{children}</section>
+  return <section id={id} className="mb-10 scroll-mt-64 sm:scroll-mt-48"><h2 className="font-barlow-condensed text-2xl font-black">{titulo}</h2><p className="mb-4 mt-1 text-xs text-slate-400">{subtitulo}</p>{children}</section>
 }
 
 function CardProduto({ produto, onAdicionar }: { produto: Produto; onAdicionar: (produto: Produto) => void }) {
@@ -1060,7 +1080,7 @@ function ConfiguracaoPedido({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[200px_240px_minmax(280px,1fr)]">
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Unidade</label>
+          <label htmlFor="unidade-pedido" className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Unidade <CampoObrigatorio /></label>
           <select value={unidadeId ?? ''} onChange={(event) => onUnidade(Number(event.target.value))} disabled={unidadeBloqueada} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500">
             <option value="">Selecione</option>
             {unidades.map((unidade) => <option key={unidade.id} value={unidade.id}>{unidade.nome}</option>)}
@@ -1069,7 +1089,7 @@ function ConfiguracaoPedido({
 
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Nome da comanda</label>
-          <input value={nomeComanda} onChange={(event) => onNomeComanda(event.target.value)} disabled={Boolean(pedidoAbertoId)} placeholder="Ex.: Mesa 3 ou Samuel" className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-100" />
+          <input value={nomeComanda} onChange={(event) => onNomeComanda(event.target.value)} disabled={Boolean(pedidoAbertoId)} aria-required="true" id="nome-comanda" placeholder="Ex.: Mesa 3 ou Samuel" className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-100" />
         </div>
 
         <div className="sm:col-span-2 lg:col-span-1">
@@ -1151,7 +1171,7 @@ function ConfiguracaoPedido({
   )
 }
 
-function ResumoPedido({ pedido, subtotal, pagamento, pedidoSelecionado, itensRegistrados, pedidoEmPreparo, pedidoAbertoId, usarDescontoFidelidade, finalizando, editandoItemId, mensagemPedido, onPagamento, onQuantidade, onEditarItemRegistrado, onAtualizarObservacao, onSalvarAberto, onFinalizar }: { pedido: ItemPedido[]; subtotal: number; pagamento: string; pedidoSelecionado: PedidoApi | undefined; itensRegistrados: PedidoApi['itens']; pedidoEmPreparo: boolean; pedidoAbertoId: number | null; usarDescontoFidelidade: boolean; finalizando: boolean; editandoItemId: number | null; mensagemPedido: string; onPagamento: (valor: string) => void; onQuantidade: (id: string, quantidade: number) => void; onEditarItemRegistrado: (item: PedidoApi['itens'][number], acao: 'adicionar' | 'remover' | 'excluir') => void; onAtualizarObservacao: (itemId: number, observacao: string | null) => Promise<void>; onSalvarAberto: () => void; onFinalizar: () => void }) {
+function ResumoPedido({ tipoMensagemPedido, pedido, subtotal, pagamento, pedidoSelecionado, itensRegistrados, pedidoEmPreparo, pedidoAbertoId, usarDescontoFidelidade, finalizando, editandoItemId, mensagemPedido, onPagamento, onQuantidade, onEditarItemRegistrado, onAtualizarObservacao, onSalvarAberto, onFinalizar }: { tipoMensagemPedido?: 'sucesso' | 'erro' | 'info'; pedido: ItemPedido[]; subtotal: number; pagamento: string; pedidoSelecionado: PedidoApi | undefined; itensRegistrados: PedidoApi['itens']; pedidoEmPreparo: boolean; pedidoAbertoId: number | null; usarDescontoFidelidade: boolean; finalizando: boolean; editandoItemId: number | null; mensagemPedido: string; onPagamento: (valor: string) => void; onQuantidade: (id: string, quantidade: number) => void; onEditarItemRegistrado: (item: PedidoApi['itens'][number], acao: 'adicionar' | 'remover' | 'excluir') => void; onAtualizarObservacao: (itemId: number, observacao: string | null) => Promise<void>; onSalvarAberto: () => void; onFinalizar: () => void }) {
   const [obsEditando, setObsEditando] = useState<{ itemId: number; texto: string } | null>(null)
   const [salvandoObs, setSalvandoObs] = useState(false)
   const descontoExistente = Number(pedidoSelecionado?.desconto_fidelidade ?? 0)
@@ -1258,7 +1278,7 @@ function ResumoPedido({ pedido, subtotal, pagamento, pedidoSelecionado, itensReg
       <div className="border-t border-slate-200 bg-[#f8faff] p-5 lg:shrink-0">
         <div className="space-y-2 text-xs text-slate-500"><div className="flex justify-between"><span>Novos itens</span><span>{moeda(subtotal)}</span></div>{pedidoAbertoId && <div className="flex justify-between"><span>Total atual do pedido</span><span>{moeda(totalAtual)}</span></div>}{descontoExibido > 0 && <div className="flex justify-between font-semibold text-emerald-700"><span>Desconto fidelidade</span><span>- {moeda(descontoExibido)}</span></div>}<div className="flex items-end justify-between border-t border-slate-200 pt-3 text-preto-v1"><span className="font-bold">Total para finalizar</span><strong className="text-2xl">{moeda(totalParaFinalizar)}</strong></div></div>
         <div className="mt-4 grid grid-cols-4 gap-2">{pagamentos.map((item) => <button key={item.id} type="button" onClick={() => onPagamento(item.id)} className={`flex h-12 flex-col items-center justify-center gap-1 rounded-lg border text-[9px] font-bold uppercase leading-none whitespace-nowrap ${pagamento === item.id ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white'}`}>{item.icon}{item.label}</button>)}</div>
-        {mensagemPedido && <p className={`mt-3 text-xs font-semibold ${mensagemPedido.includes('aberto') || mensagemPedido.includes('finalizado') ? 'text-emerald-700' : 'text-red-600'}`}>{mensagemPedido}</p>}
+        {mensagemPedido && <p className={`mt-3 text-xs font-semibold ${tipoMensagemPedido === 'sucesso' ? 'text-emerald-700' : 'text-red-600'}`}>{mensagemPedido}</p>}
         <button type="button" onClick={onSalvarAberto} disabled={!pedido.length || finalizando || pedidoEmPreparo} className="mt-4 w-full whitespace-nowrap rounded-xl border-2 border-emerald-600 bg-white px-5 py-3 text-xs font-black uppercase text-emerald-700 disabled:border-slate-300 disabled:text-slate-400">{finalizando ? 'Salvando...' : pedidoAbertoId ? 'Adicionar e manter aberto' : 'Enviar e manter aberto'}</button>
         <button type="button" onClick={onFinalizar} disabled={(!pedido.length && !pedidoAbertoId) || finalizando || pedidoEmPreparo} className="mt-2 w-full rounded-xl bg-emerald-600 px-5 py-4 text-sm font-black uppercase text-white disabled:bg-slate-300">{finalizando ? 'Finalizando...' : 'Finalizar e receber pagamento'}</button>
       </div>
