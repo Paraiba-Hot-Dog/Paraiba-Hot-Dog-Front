@@ -46,8 +46,11 @@ async function respostaJson<T>(response: Response): Promise<T> {
   let mensagem = `Erro ${response.status}`
 
   try {
-    const body = (await response.json()) as { detail?: string }
-    if (body.detail) mensagem = body.detail
+    const body = (await response.json()) as { detail?: string | Array<{ msg?: string }> }
+    if (typeof body.detail === 'string') mensagem = body.detail
+    if (Array.isArray(body.detail)) {
+      mensagem = body.detail.map((item) => item.msg).filter(Boolean).join(', ') || mensagem
+    }
   } catch {
     // Mantem a mensagem baseada no status quando a API nao retorna JSON.
   }

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, LoaderCircle, Search, Users } from 'lucide-react'
+import { Award, CheckCircle2, ChevronLeft, ChevronRight, LoaderCircle, Pencil, Search, Users } from 'lucide-react'
 import BarraDeNavegacaoAdmin, {
   CLASSE_OFFSET_BARRA_ADMIN,
 } from '../../componentes/administrador/BarraDeNavegacaoAdmin'
-import { listarClientesApi, type ClienteApi } from '../../servicos/clientesApi'
+import ModalEdicaoCliente from '../../componentes/administrador/clientes/ModalEdicaoCliente'
+import ModalPontosCliente from '../../componentes/administrador/clientes/ModalPontosCliente'
+import { formatarTelefone, listarClientesApi, type ClienteApi } from '../../servicos/clientesApi'
 
 const TAMANHO_PAGINA = 10
 const ATRASO_BUSCA_MS = 200
@@ -26,6 +28,9 @@ export default function GestaoClientes() {
   })
   const [temProximaPagina, setTemProximaPagina] = useState(false)
   const [tentativa, setTentativa] = useState(0)
+  const [clienteEmEdicao, setClienteEmEdicao] = useState<ClienteApi | null>(null)
+  const [clienteEmAjustePontos, setClienteEmAjustePontos] = useState<ClienteApi | null>(null)
+  const [notificacao, setNotificacao] = useState<string | null>(null)
 
   useEffect(() => {
     const termo = busca.trim()
@@ -85,6 +90,22 @@ export default function GestaoClientes() {
     setTentativa((atual) => atual + 1)
   }
 
+  function substituirCliente(atualizado: ClienteApi) {
+    setClientes((atuais) => atuais.map((item) => (item.id === atualizado.id ? atualizado : item)))
+  }
+
+  function concluirEdicao(atualizado: ClienteApi) {
+    substituirCliente(atualizado)
+    setClienteEmEdicao(null)
+    setNotificacao('Cliente atualizado com sucesso.')
+  }
+
+  function concluirAjustePontos(atualizado: ClienteApi) {
+    substituirCliente(atualizado)
+    setClienteEmAjustePontos(null)
+    setNotificacao('Pontos atualizados com sucesso.')
+  }
+
   const inicio = pagina * TAMANHO_PAGINA + 1
   const fim = pagina * TAMANHO_PAGINA + clientes.length
 
@@ -100,10 +121,14 @@ export default function GestaoClientes() {
             <div>
               <h1 className="font-barlow-condensed text-3xl font-bold uppercase">Clientes</h1>
               <p className="font-barlow text-sm text-cinza-base/75">
-                Consulte o saldo atual de pontos dos clientes.
+                Consulte e edite os dados e o saldo de pontos dos clientes.
               </p>
             </div>
           </div>
+
+          {notificacao && (
+            <Notificacao mensagem={notificacao} onFechar={() => setNotificacao(null)} />
+          )}
 
           <label className="relative block w-full sm:max-w-xs">
             <span className="sr-only">Buscar clientes</span>
@@ -143,7 +168,7 @@ export default function GestaoClientes() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-160 border-collapse text-left">
+                <table className="w-full min-w-200 border-collapse text-left">
                   <thead className="bg-[#f7f9fc]">
                     <tr className="border-b border-[#e2e6ec] font-barlow text-xs font-bold uppercase tracking-wider text-cinza-base/70">
                       <th
@@ -154,6 +179,8 @@ export default function GestaoClientes() {
                       </th>
                       <th className="px-5 py-4">E-mail</th>
                       <th className="px-5 py-4">Telefone</th>
+                      <th className="px-5 py-4 text-center">Edição</th>
+                      <th className="px-5 py-4 text-center">Fidelidade</th>
                       <th className="px-5 py-4 text-right">Saldo de pontos</th>
                     </tr>
                   </thead>
@@ -163,6 +190,28 @@ export default function GestaoClientes() {
                         <td className="px-5 py-4 font-barlow font-semibold">{cliente.nome}</td>
                         <td className="px-5 py-4 font-barlow text-sm text-cinza-base">{cliente.email || 'Não informado'}</td>
                         <td className="px-5 py-4 font-barlow text-sm text-cinza-base">{formatarTelefone(cliente.telefone)}</td>
+                        <td className="px-5 py-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setClienteEmEdicao(cliente)}
+                            aria-label={`Editar dados de ${cliente.nome}`}
+                            className="inline-flex items-center gap-1 rounded-lg border border-[#d8dee8] px-3 py-2 text-[10px] font-black uppercase text-preto-v1 transition hover:bg-[#f7f9fc]"
+                          >
+                            <Pencil size={12} aria-hidden />
+                            Editar
+                          </button>
+                        </td>
+                        <td className="px-5 py-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setClienteEmAjustePontos(cliente)}
+                            aria-label={`Alterar pontos de ${cliente.nome}`}
+                            className="inline-flex items-center gap-1 rounded-lg border border-[#d8dee8] px-3 py-2 text-[10px] font-black uppercase text-preto-v1 transition hover:bg-[#f7f9fc]"
+                          >
+                            <Award size={12} aria-hidden />
+                            Pontos
+                          </button>
+                        </td>
                         <td className="px-5 py-4 text-right font-barlow font-bold">{cliente.pontos_fidelidade}</td>
                       </tr>
                     ))}
@@ -200,15 +249,42 @@ export default function GestaoClientes() {
           )}
         </section>
       </main>
+
+      {clienteEmEdicao && (
+        <ModalEdicaoCliente
+          cliente={clienteEmEdicao}
+          onFechar={() => setClienteEmEdicao(null)}
+          onSalvo={concluirEdicao}
+        />
+      )}
+
+      {clienteEmAjustePontos && (
+        <ModalPontosCliente
+          cliente={clienteEmAjustePontos}
+          onFechar={() => setClienteEmAjustePontos(null)}
+          onSalvo={concluirAjustePontos}
+        />
+      )}
     </div>
   )
 }
 
-function formatarTelefone(telefone: string) {
-  const numeros = telefone.replace(/\D/g, '')
-  if (numeros.length === 11) return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 7)}-${numeros.slice(7)}`
-  if (numeros.length === 10) return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 6)}-${numeros.slice(6)}`
-  return telefone
+function Notificacao({ mensagem, onFechar }: { mensagem: string; onFechar: () => void }) {
+  useEffect(() => {
+    const timer = window.setTimeout(onFechar, 2500)
+    return () => window.clearTimeout(timer)
+  }, [mensagem, onFechar])
+
+  return (
+    <div
+      className="flex items-center gap-3 rounded-2xl border border-emerald-200/80 bg-emerald-50 px-6 py-4 font-barlow text-sm font-medium text-emerald-800 shadow-[0_4px_16px_rgba(16,185,129,0.1)] sm:text-base"
+      role="status"
+      aria-live="polite"
+    >
+      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 sm:h-6 sm:w-6" aria-hidden />
+      <span className="whitespace-nowrap">{mensagem}</span>
+    </div>
+  )
 }
 
 function mensagemErro(error: unknown) {

@@ -40,9 +40,11 @@ export type PedidoApi = {
   }>
 }
 
-export async function listarCozinha(unidadeId?: number) {
+// incluirEntregues traz tambem os lotes ja entregues (os mais recentes, limitados
+// no back) para alimentar a aba "Entregues" sem consultar outro endpoint.
+export async function listarCozinha(unidadeId?: number, incluirEntregues = false) {
   const response = await apiFetch('/pedidos/cozinha', {
-    params: { unidade_id: unidadeId },
+    params: { unidade_id: unidadeId, incluir_entregues: incluirEntregues },
   })
 
   if (!response.ok) {

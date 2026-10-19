@@ -25,7 +25,17 @@ import type { NomePermissaoApi } from './servicos/usuariosApi'
 const Dashboard = lazy(() => import('./telas/administrador/Dashboard'))
 
 export default function App() {
-  const { pathname } = window.location
+  const { pathname, hash } = window.location
+  const hashParams = new URLSearchParams(hash.replace(/^#/, ''))
+  const descricaoLink = (hashParams.get('error_description') ?? '').toLowerCase()
+  const linkDeRecuperacao = hashParams.get('type') === 'recovery' && Boolean(hashParams.get('access_token'))
+  const linkInvalido = hashParams.get('error_code') === 'otp_expired' || descricaoLink.includes('email link')
+
+  if ((linkDeRecuperacao || linkInvalido) && pathname !== '/recuperar-senha') {
+    window.location.replace(`/recuperar-senha${hash}`)
+    return null
+  }
+
   const {
     isAuthenticated,
     hasRole,

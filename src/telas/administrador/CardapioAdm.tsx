@@ -17,6 +17,7 @@ import {
 import BarraDeNavegacaoAdmin, {
   CLASSE_OFFSET_BARRA_ADMIN,
 } from "../../componentes/administrador/BarraDeNavegacaoAdmin";
+import RecorteImagem from "../../componentes/administrador/RecorteImagem";
 import Rodape from "../../componentes/usuario/Rodape";
 import {
   listarCategoriasCardapio,
@@ -855,9 +856,16 @@ function ProdutoFormModal({
 
   const imagemPreview = form.imagemLocal || form.imagemUrl;
   const nomeArquivoImagem = form.imagemArquivo?.name ?? "Nenhum arquivo selecionado";
+  const [recortePendente, setRecortePendente] = useState<{
+    arquivo: File;
+    origem: string;
+  } | null>(null);
 
   const handleArquivo = (event: React.ChangeEvent<HTMLInputElement>) => {
     const arquivo = event.target.files?.[0] ?? null;
+
+    event.target.value = "";
+
     if (!arquivo) {
       setForm((current) => ({
         ...current,
@@ -867,15 +875,19 @@ function ProdutoFormModal({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm((current) => ({
-        ...current,
-        imagemArquivo: arquivo,
-        imagemLocal: String(reader.result),
-      }));
-    };
-    reader.readAsDataURL(arquivo);
+    const leitor = new FileReader();
+    leitor.onload = () =>
+      setRecortePendente({ arquivo, origem: String(leitor.result) });
+    leitor.readAsDataURL(arquivo);
+  };
+
+  const aplicarRecorte = (arquivoRecortado: File, preview: string) => {
+    setForm((current) => ({
+      ...current,
+      imagemArquivo: arquivoRecortado,
+      imagemLocal: preview,
+    }));
+    setRecortePendente(null);
   };
 
   const salvar = async () => {
@@ -888,6 +900,7 @@ function ProdutoFormModal({
   };
 
   return (
+    <>
     <div
       className={modalOverlayClass}
       role="dialog"
@@ -1202,6 +1215,16 @@ function ProdutoFormModal({
         </div>
       </div>
     </div>
+
+      {recortePendente && (
+        <RecorteImagem
+          arquivo={recortePendente.arquivo}
+          origem={recortePendente.origem}
+          onCancelar={() => setRecortePendente(null)}
+          onConfirmar={aplicarRecorte}
+        />
+      )}
+    </>
   );
 }
 

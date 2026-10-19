@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
-import { CalendarDays, CheckCircle2, ImagePlus, LoaderCircle, Pencil, Plus, Save, Trash2, Type } from 'lucide-react'
+import CampoObrigatorio from '../../componentes/compartilhados/CampoObrigatorio'
+import Toast, { type Notificacao } from '../../componentes/compartilhados/Toast'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { CalendarDays, ImagePlus, LoaderCircle, Pencil, Plus, Save, Trash2, Type } from 'lucide-react'
 import BarraDeNavegacaoAdmin, {
   CLASSE_OFFSET_BARRA_ADMIN,
 } from '../../componentes/administrador/BarraDeNavegacaoAdmin'
@@ -31,6 +33,7 @@ const formularioVazio: FormularioBlog = {
 }
 
 export default function GestaoBlog() {
+  const sequenciaNotificacao = useRef(0)
   const [posts, setPosts] = useState<BlogPostApi[]>([])
   const [formulario, setFormulario] = useState<FormularioBlog>(formularioVazio)
   const [carregando, setCarregando] = useState(true)
@@ -38,7 +41,7 @@ export default function GestaoBlog() {
   const [excluindoId, setExcluindoId] = useState<number | null>(null)
   const [postParaExcluir, setPostParaExcluir] = useState<BlogPostApi | null>(null)
   const [erro, setErro] = useState('')
-  const [notificacao, setNotificacao] = useState<string | null>(null)
+  const [notificacao, setNotificacao] = useState<Notificacao | null>(null)
 
   useEffect(() => {
     let ativo = true
@@ -113,6 +116,7 @@ export default function GestaoBlog() {
 
   async function salvar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
+    if (salvando) return
     limparAvisos()
     setSalvando(true)
 
@@ -135,14 +139,14 @@ export default function GestaoBlog() {
         const criado = await criarPostBlogApi(payload)
         setPosts((atuais) => [criado, ...atuais])
         setFormulario(mapearPostParaFormulario(criado))
-        setNotificacao('Post criado com sucesso.')
+        setNotificacao({ id: ++sequenciaNotificacao.current, mensagem: 'Post criado com sucesso.', tipo: 'sucesso' })
       } else {
         const atualizado = await atualizarPostBlogApi(formulario.id, payload)
         setPosts((atuais) =>
           atuais.map((post) => (post.id === atualizado.id ? atualizado : post)),
         )
         setFormulario(mapearPostParaFormulario(atualizado))
-        setNotificacao('Post atualizado com sucesso.')
+        setNotificacao({ id: ++sequenciaNotificacao.current, mensagem: 'Post atualizado com sucesso.', tipo: 'sucesso' })
       }
     } catch (error) {
       setErro(mensagemErro(error))
@@ -165,7 +169,7 @@ export default function GestaoBlog() {
       await excluirPostBlogApi(post.id)
       setPosts((atuais) => atuais.filter((item) => item.id !== post.id))
       if (formulario.id === post.id) setFormulario(formularioVazio)
-      setNotificacao('Post removido com sucesso.')
+      setNotificacao({ id: ++sequenciaNotificacao.current, mensagem: 'Post removido com sucesso.', tipo: 'sucesso' })
     } catch (error) {
       setErro(mensagemErro(error))
     } finally {
@@ -195,7 +199,7 @@ export default function GestaoBlog() {
 
           <div className="flex shrink-0 items-center gap-4">
             {notificacao && (
-              <Notificacao mensagem={notificacao} onFechar={() => setNotificacao(null)} />
+              <Toast key={notificacao.id} notificacao={notificacao} onFechar={() => setNotificacao(null)} />
             )}
             <button
               type="button"
@@ -221,7 +225,7 @@ export default function GestaoBlog() {
 
             <form className="mt-5 grid gap-4" onSubmit={salvar}>
               <label className="grid gap-1.5">
-                <span className="text-xs font-black uppercase tracking-[0.14em] text-cinza-base">Título</span>
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-cinza-base">Título <CampoObrigatorio /></span>
                 <div className="flex items-center gap-2 rounded-xl border border-[#d8dee8] bg-white px-3">
                   <Type size={16} className="text-cinza-base" />
                   <input
@@ -234,7 +238,7 @@ export default function GestaoBlog() {
               </label>
 
               <label className="grid gap-1.5">
-                <span className="text-xs font-black uppercase tracking-[0.14em] text-cinza-base">Descrição</span>
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-cinza-base">Descrição <CampoObrigatorio /></span>
                 <textarea
                   value={formulario.descricao}
                   onChange={(event) => atualizarCampo('descricao', event.target.value)}
@@ -245,7 +249,7 @@ export default function GestaoBlog() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-1.5">
-                  <span className="text-xs font-black uppercase tracking-[0.14em] text-cinza-base">Tipo</span>
+                  <span className="text-xs font-black uppercase tracking-[0.14em] text-cinza-base">Tipo <CampoObrigatorio /></span>
                   <select
                     value={formulario.tipo}
                     onChange={(event) => atualizarCampo('tipo', event.target.value as TipoBlogApi)}
@@ -257,7 +261,7 @@ export default function GestaoBlog() {
                 </label>
 
                 <label className="grid gap-1.5">
-                  <span className="text-xs font-black uppercase tracking-[0.14em] text-cinza-base">Data</span>
+                  <span className="text-xs font-black uppercase tracking-[0.14em] text-cinza-base">Data <CampoObrigatorio /></span>
                   <div className="flex items-center gap-2 rounded-xl border border-[#d8dee8] bg-white px-3">
                     <CalendarDays size={16} className="text-cinza-base" />
                     <input
@@ -271,7 +275,7 @@ export default function GestaoBlog() {
               </div>
 
               <label className="grid gap-1.5">
-                <span className="text-xs font-black uppercase tracking-[0.14em] text-cinza-base">Imagem</span>
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-cinza-base">Imagem{criando && <CampoObrigatorio />}</span>
                 {criando ? (
                   <div className="grid gap-3 rounded-xl border border-dashed border-[#d8dee8] bg-[#f8fafc] p-4">
                     <input
@@ -438,30 +442,6 @@ export default function GestaoBlog() {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-function Notificacao({
-  mensagem,
-  onFechar,
-}: {
-  mensagem: string
-  onFechar: () => void
-}) {
-  useEffect(() => {
-    const timer = window.setTimeout(onFechar, 2500)
-    return () => window.clearTimeout(timer)
-  }, [mensagem, onFechar])
-
-  return (
-    <div
-      className="flex items-center gap-3 rounded-2xl border border-emerald-200/80 bg-emerald-50 px-6 py-4 font-barlow text-sm font-medium text-emerald-800 shadow-[0_4px_16px_rgba(16,185,129,0.1)] sm:text-base"
-      role="status"
-      aria-live="polite"
-    >
-      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 sm:h-6 sm:w-6" aria-hidden />
-      <span className="whitespace-nowrap">{mensagem}</span>
     </div>
   )
 }
