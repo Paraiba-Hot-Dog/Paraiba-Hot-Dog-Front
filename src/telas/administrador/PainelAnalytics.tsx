@@ -56,13 +56,16 @@ export default function PainelAnalytics() {
                 tabIndex={ativa ? 0 : -1}
                 onClick={() => selecionarAba(aba.id)}
                 onKeyDown={navegarPorTeclado}
-                className={`flex h-full min-h-11 shrink-0 items-center whitespace-nowrap border-b-[3px] px-3 font-barlow-condensed text-base font-black uppercase tracking-wide transition-colors sm:px-4 sm:text-lg ${
+                className={`flex h-full min-h-11 shrink-0 items-center whitespace-nowrap border-b-[3px] px-2 transition-colors sm:px-4 ${
                   ativa
                     ? 'border-[#1597ff] text-[#172033]'
                     : 'border-transparent text-[#7d8ea4] hover:text-[#172033]'
                 }`}
               >
-                {aba.rotulo}
+                {/* O texto fica no span: o `button { font: inherit }` do index.css anula classes de fonte no botão. */}
+                <span className="font-barlow-condensed text-base font-black uppercase sm:text-lg sm:tracking-wide">
+                  {aba.rotulo}
+                </span>
               </button>
             )
           })}
