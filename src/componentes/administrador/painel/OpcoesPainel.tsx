@@ -27,6 +27,12 @@ const opcoesPainel: OpcaoPainel[] = [
     icone: <ClipboardPen size={36} strokeWidth={1.75} aria-hidden />,
   },
   {
+    rotulo: 'Pedidos',
+    href: '/admin/pedidos',
+    permissao: 'anotar_pedidos',
+    icone: <ClipboardPen size={36} strokeWidth={1.75} aria-hidden />,
+  },
+  {
     rotulo: 'Cozinha',
     href: '/admin/cozinha',
     permissao: 'cozinha',
@@ -82,7 +88,7 @@ export default function OpcoesPainel() {
     <>
       <div className="mt-8 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
         {opcoesPainel.map(({ rotulo, href, icone, permissao }) => {
-          const permitido = hasPermission(permissao)
+          const permitido = rotulo === 'Pedidos' ? hasPermission('anotar_pedidos') || hasPermission('cozinha') : hasPermission(permissao)
 
           return href ? (
             <BotaoOpcaoPainel
