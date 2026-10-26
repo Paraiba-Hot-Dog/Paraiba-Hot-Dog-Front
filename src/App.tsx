@@ -12,7 +12,7 @@ import { useAuth } from './contextos/useAuth'
 import Cardapio from './telas/usuario/Cardapio'
 import CartaoFidelidade from './telas/usuario/CartaoFidelidade'
 import Cozinha from './telas/administrador/Cozinha'
-import Dashboard from './telas/administrador/Dashboard'
+import PainelAnalytics from './telas/administrador/PainelAnalytics'
 import Inicio from './telas/usuario/Inicio'
 import Login from './telas/usuario/Login'
 import SobreNos from './telas/usuario/SobreNos'
@@ -120,7 +120,7 @@ export default function App() {
   }
 
   if (pathname === '/dashboard' || pathname === '/admin/dashboard') {
-    return <Dashboard />
+    return <PainelAnalytics />
   }
 
   if (pathname === '/cozinha' || pathname === '/admin/cozinha') {
