@@ -5,6 +5,7 @@ import Rodape from "../../componentes/usuario/Rodape";
 import type { ProdutoCardapio, SecaoCardapio } from "../../model/cardapio";
 import { listarSecoesCardapio } from "../../repository/cardapioRepository";
 import { listarUnidades, type Unidade } from "../../servicos/api";
+import { registrarEvento } from "../../servicos/analyticsApi";
 
 const MARGEM_ANCORA_EXTRA = 24;
 
@@ -481,6 +482,18 @@ export default function Cardapio() {
   );
 
   useEffect(() => {
+    registrarEvento("abertura_cardapio");
+  }, []);
+
+  function abrirProduto(produto: ProdutoCardapio) {
+    setProdutoSelecionado(produto);
+    registrarEvento("visualizacao_produto", {
+      produtoId: produto.id,
+      unidadeId: unidadeSelecionadaId || null,
+    });
+  }
+
+  useEffect(() => {
     let ativo = true;
     setCarregando(true);
 
@@ -622,6 +635,9 @@ export default function Cardapio() {
                 setCarregando(true);
                 setProdutoSelecionado(null);
                 setUnidadeSelecionadaId(id);
+                if (id !== "") {
+                  registrarEvento("selecao_unidade", { unidadeId: id });
+                }
               }}
               navRef={navRef}
             />
@@ -648,7 +664,7 @@ export default function Cardapio() {
                     key={secao.id}
                     secao={secao}
                     ativa={secao.id === secaoAtivaExibida}
-                    onSelectProduto={setProdutoSelecionado}
+                    onSelectProduto={abrirProduto}
                     margemAncora={alturaNav + MARGEM_ANCORA_EXTRA}
                   />
                 ))}

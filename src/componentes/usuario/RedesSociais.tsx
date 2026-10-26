@@ -1,5 +1,6 @@
 import iconeIfood from "../../imagens/social/ifood.svg";
 import iconeInstagram from "../../imagens/social/instagram.svg";
+import { registrarEvento } from "../../servicos/analyticsApi";
 
 type RedesSociaisProps = {
   className?: string;
@@ -36,6 +37,7 @@ export default function RedesSociais({
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Pedir pelo iFood"
+        onClick={() => registrarEvento("clique_pedir")}
         className={
           isPlain
             ? "transition-opacity hover:opacity-70"
