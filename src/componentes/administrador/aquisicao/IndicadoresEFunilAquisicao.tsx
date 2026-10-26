@@ -1,71 +1,113 @@
 import { useEffect, useState } from 'react'
 import { useFiltroAquisicao } from '../../../hooks/useFiltroAquisicao'
-import { getAquisicao, type AquisicaoApi } from '../../../servicos/aquisicaoApi'
+import {
+  getAquisicao,
+  type AquisicaoApi,
+  type FiltroAquisicao,
+} from '../../../servicos/aquisicaoApi'
+import CardsIndicadoresAquisicao from './CardsIndicadoresAquisicao'
+import FunilAquisicao from './FunilAquisicao'
 
-type EstadoCarregamento =
-  | { status: 'carregando' }
-  | { status: 'erro'; mensagem: string }
-  | { status: 'pronto'; dados: AquisicaoApi }
+const ETAPAS_VAZIAS: AquisicaoApi['funil'] = (
+  ['visita_site', 'abertura_cardapio', 'selecao_unidade', 'visualizacao_produto', 'clique_pedir'] as const
+).map((etapa) => ({
+  etapa,
+  volume: 0,
+  conversao_etapa_anterior: null,
+  perda: 0,
+  maior_abandono: false,
+}))
+
+const AQUISICAO_VAZIA: AquisicaoApi = {
+  funil: ETAPAS_VAZIAS,
+  indicadores: {
+    visitantes: 0,
+    visualizacoes_cardapio: 0,
+    produtos_visualizados: 0,
+    cliques_pedir: 0,
+    taxa_visita_clique: null,
+  },
+}
+
+type Resultado =
+  | { chave: string; dados: AquisicaoApi; erro: null }
+  | { chave: string; dados: null; erro: string }
+
+function chaveDoFiltro(filtro: FiltroAquisicao) {
+  return `${filtro.periodo}|${filtro.unidadeId ?? ''}|${filtro.canal ?? ''}`
+}
 
 /**
  * Bloco de indicadores e funil da aba de Aquisição (Pessoa A).
- * Lê o filtro compartilhado; a apresentação final entra na Fase 6.
+ * Lê o filtro compartilhado; ao trocar o filtro, mantém os números
+ * anteriores esmaecidos até a resposta nova chegar. Em erro, mostra só
+ * a mensagem, para não exibir números de outro filtro.
  */
 export default function IndicadoresEFunilAquisicao() {
   const { filtro } = useFiltroAquisicao()
-  const [estado, setEstado] = useState<EstadoCarregamento>({ status: 'carregando' })
+  const chave = chaveDoFiltro(filtro)
+  const [resultado, setResultado] = useState<Resultado | null>(null)
+  const [ultimosDados, setUltimosDados] = useState<AquisicaoApi | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
 
     getAquisicao(filtro, controller.signal)
-      .then((dados) => setEstado({ status: 'pronto', dados }))
+      .then((dados) => {
+        setResultado({ chave, dados, erro: null })
+        setUltimosDados(dados)
+      })
       .catch((erro: unknown) => {
         if (erro instanceof DOMException && erro.name === 'AbortError') return
-        setEstado({
-          status: 'erro',
-          mensagem: erro instanceof Error ? erro.message : 'Erro inesperado ao carregar a aquisição.',
+        setResultado({
+          chave,
+          dados: null,
+          erro: erro instanceof Error ? erro.message : 'Erro inesperado ao carregar a aquisição.',
         })
       })
 
     return () => controller.abort()
-  }, [filtro])
+  }, [filtro, chave])
 
-  if (estado.status === 'carregando') {
-    return (
-      <div className="rounded border border-[#ffdb38] bg-[#fff1a6] px-3 py-2.5 text-xs font-extrabold text-[#604f00]">
-        Carregando dados de aquisição da API...
-      </div>
-    )
-  }
-
-  if (estado.status === 'erro') {
-    return (
-      <div className="rounded border border-[#f4a5ad] bg-[#ffe4e7] px-3 py-2.5 text-xs font-extrabold text-[#8a1018]">
-        {estado.mensagem}
-      </div>
-    )
-  }
-
-  const { indicadores, funil } = estado.dados
+  const carregando = resultado?.chave !== chave
+  const erro = !carregando ? resultado?.erro ?? null : null
+  const dados = (!carregando ? resultado?.dados : null) ?? ultimosDados ?? AQUISICAO_VAZIA
+  const semResultados =
+    !carregando &&
+    !erro &&
+    dados.indicadores.visitantes === 0 &&
+    dados.funil.every((etapa) => etapa.volume === 0)
 
   return (
-    <section
-      className="rounded-xl border border-[#d8e1ed] bg-white p-4 shadow-sm"
-      aria-label="Indicadores e funil de aquisição"
-    >
-      <dl className="grid grid-cols-2 gap-3 text-sm font-bold text-[#53657a] sm:grid-cols-5">
-        <div><dt>Visitantes</dt><dd className="text-xl font-black text-[#223149]">{indicadores.visitantes}</dd></div>
-        <div><dt>Visualizações do cardápio</dt><dd className="text-xl font-black text-[#223149]">{indicadores.visualizacoes_cardapio}</dd></div>
-        <div><dt>Produtos visualizados</dt><dd className="text-xl font-black text-[#223149]">{indicadores.produtos_visualizados}</dd></div>
-        <div><dt>Cliques para pedir</dt><dd className="text-xl font-black text-[#223149]">{indicadores.cliques_pedir}</dd></div>
-        <div><dt>Taxa visita → clique</dt><dd className="text-xl font-black text-[#223149]">{indicadores.taxa_visita_clique ?? '—'}</dd></div>
-      </dl>
-      <ol className="mt-4 grid gap-1 text-sm text-[#53657a]">
-        {funil.map((etapa) => (
-          <li key={etapa.etapa}>{etapa.etapa}: {etapa.volume}</li>
-        ))}
-      </ol>
-    </section>
+    <div className="grid gap-3" aria-busy={carregando}>
+      {(carregando || erro) && (
+        <div
+          role={erro ? 'alert' : 'status'}
+          className={`rounded border px-3 py-2.5 text-xs font-extrabold ${
+            erro
+              ? 'border-[#f4a5ad] bg-[#ffe4e7] text-[#8a1018]'
+              : 'border-[#ffdb38] bg-[#fff1a6] text-[#604f00]'
+          }`}
+        >
+          {erro ?? 'Carregando dados de aquisição da API...'}
+        </div>
+      )}
+
+      {semResultados && (
+        <div
+          role="status"
+          className="rounded border border-[#d8e1ed] bg-white px-3 py-2.5 text-xs font-extrabold text-[#53657a] max-[900px]:text-sm"
+        >
+          Nenhuma visita registrada no período e nos filtros selecionados.
+        </div>
+      )}
+
+      {!erro && (
+        <div className={`grid gap-3 transition-opacity ${carregando && ultimosDados ? 'opacity-60' : ''}`}>
+          <CardsIndicadoresAquisicao indicadores={dados.indicadores} />
+          <FunilAquisicao funil={dados.funil} />
+        </div>
+      )}
+    </div>
   )
 }
