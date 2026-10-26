@@ -27,11 +27,21 @@ export type FiltroAquisicao = {
   canal: CanalAquisicao | null
 }
 
+/**
+ * De onde vem um número quando há filtro de unidade.
+ * `site`: todo o site; `unidade`: só a unidade filtrada;
+ * `unidade_sobre_site`: taxa que divide um número da unidade por um do site.
+ */
+export type EscopoAquisicao = 'site' | 'unidade' | 'unidade_sobre_site'
+
 export type FunilEtapaApi = {
   etapa: EtapaFunilAquisicao
   volume: number
+  escopo: EscopoAquisicao
   /** Percentual em texto (ex.: "42.50"). null na primeira etapa ou se a anterior for zero. Pode passar de 100. */
   conversao_etapa_anterior: string | null
+  /** Escopo da conversão e da perda; null na primeira etapa. */
+  escopo_conversao: EscopoAquisicao | null
   /** Pode ser negativa quando a etapa tem mais visitas que a anterior. */
   perda: number
   maior_abandono: boolean
@@ -44,6 +54,10 @@ export type IndicadoresAquisicaoApi = {
   cliques_pedir: number
   /** Percentual em texto (ex.: "12.34"). null quando nao houve visitas. */
   taxa_visita_clique: string | null
+  escopos: Record<
+    'visitantes' | 'visualizacoes_cardapio' | 'produtos_visualizados' | 'cliques_pedir' | 'taxa_visita_clique',
+    EscopoAquisicao
+  >
 }
 
 export type AquisicaoApi = {

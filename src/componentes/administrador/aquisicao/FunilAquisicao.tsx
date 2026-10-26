@@ -1,5 +1,6 @@
 import type { FunilEtapaApi } from '../../../servicos/aquisicaoApi'
 import DicaInfo from './DicaInfo'
+import SeloEscopo from './SeloEscopo'
 import {
   DICAS_ETAPA,
   ROTULOS_ETAPA,
@@ -11,20 +12,43 @@ const DICA_ACIMA_DE_100 =
   'As etapas são contadas separadamente, sem ligar os eventos de uma mesma visita. ' +
   'Quando visitas pulam uma etapa (ex.: unidade já escolhida), a etapa seguinte pode ter mais visitas que a anterior.'
 
+const DICA_UNIDADE_SOBRE_SITE =
+  'Divide as visitas desta unidade pelas aberturas do cardápio no site inteiro. ' +
+  'A diferença inclui quem escolheu outra unidade, por isso não conta como abandono.'
+
 function TextoConversao({ etapa, primeira }: { etapa: FunilEtapaApi; primeira: boolean }) {
   if (primeira) return <>Etapa base</>
   if (etapa.conversao_etapa_anterior === null) return <>Taxa indisponível</>
+  if (etapa.escopo_conversao === 'unidade_sobre_site') {
+    return <>{formatarPercentual(etapa.conversao_etapa_anterior)} do site inteiro</>
+  }
   return <>{formatarPercentual(etapa.conversao_etapa_anterior)} da anterior</>
 }
 
 function TextoPerda({ etapa, primeira }: { etapa: FunilEtapaApi; primeira: boolean }) {
   if (primeira) return null
+  if (etapa.escopo_conversao === 'unidade_sobre_site') {
+    if (etapa.perda > 0) return <>{formatarNumero(etapa.perda)} fora desta unidade</>
+    return null
+  }
   if (etapa.perda > 0) return <>−{formatarNumero(etapa.perda)} visitas</>
   if (etapa.perda < 0) return <>+{formatarNumero(-etapa.perda)} visitas</>
   return <>Sem perda</>
 }
 
-export default function FunilAquisicao({ funil }: { funil: FunilEtapaApi[] }) {
+function corDaPerda(etapa: FunilEtapaApi) {
+  if (etapa.escopo_conversao === 'unidade_sobre_site') return 'text-[#7d8ea4]'
+  return etapa.perda > 0 ? 'text-[#d71920]' : 'text-[#078669]'
+}
+
+export default function FunilAquisicao({
+  funil,
+  comUnidade,
+}: {
+  funil: FunilEtapaApi[]
+  /** Há filtro de unidade: mostra o escopo de cada etapa. */
+  comUnidade: boolean
+}) {
   const maiorVolume = Math.max(...funil.map((etapa) => etapa.volume), 0)
   const temAcimaDe100 = funil.some(
     (etapa) => etapa.conversao_etapa_anterior !== null && Number(etapa.conversao_etapa_anterior) > 100,
@@ -51,13 +75,13 @@ export default function FunilAquisicao({ funil }: { funil: FunilEtapaApi[] }) {
           return (
             <li
               key={etapa.etapa}
-              className={`grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(11rem,14rem)_minmax(0,1fr)_minmax(12rem,15rem)] sm:items-center sm:gap-4 ${
+              className={`grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(11rem,16rem)_minmax(0,1fr)_minmax(12rem,17rem)] sm:items-center sm:gap-4 ${
                 etapa.maior_abandono
                   ? 'border-[#d71920] bg-[#fff5f6]'
                   : 'border-[#edf1f6] bg-[#fbfcfe]'
               }`}
             >
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                 <span
                   aria-hidden
                   className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#172033] text-[11px] font-black text-white"
@@ -68,6 +92,7 @@ export default function FunilAquisicao({ funil }: { funil: FunilEtapaApi[] }) {
                   {rotulo}
                 </span>
                 <DicaInfo rotulo={rotulo} texto={DICAS_ETAPA[etapa.etapa]} />
+                {comUnidade && <SeloEscopo escopo={etapa.escopo} />}
               </div>
 
               <div className="flex min-w-0 items-center gap-3">
@@ -94,9 +119,15 @@ export default function FunilAquisicao({ funil }: { funil: FunilEtapaApi[] }) {
                   {acimaDe100 && (
                     <DicaInfo rotulo={`${rotulo} acima de 100%`} texto={DICA_ACIMA_DE_100} />
                   )}
+                  {etapa.escopo_conversao === 'unidade_sobre_site' && (
+                    <>
+                      <SeloEscopo escopo="unidade_sobre_site" />
+                      <DicaInfo rotulo={`${rotulo}: unidade ÷ site`} texto={DICA_UNIDADE_SOBRE_SITE} />
+                    </>
+                  )}
                 </span>
                 {!primeira && (
-                  <span className={etapa.perda > 0 ? 'text-[#d71920]' : 'text-[#078669]'}>
+                  <span className={corDaPerda(etapa)}>
                     <TextoPerda etapa={etapa} primeira={primeira} />
                   </span>
                 )}

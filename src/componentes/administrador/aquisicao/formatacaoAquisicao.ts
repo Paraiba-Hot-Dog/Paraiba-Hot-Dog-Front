@@ -1,4 +1,10 @@
-import type { EtapaFunilAquisicao } from '../../../servicos/aquisicaoApi'
+import type { EscopoAquisicao, EtapaFunilAquisicao } from '../../../servicos/aquisicaoApi'
+
+export const ROTULOS_ESCOPO: Record<EscopoAquisicao, string> = {
+  site: 'Site inteiro',
+  unidade: 'Só a unidade',
+  unidade_sobre_site: 'Unidade ÷ site',
+}
 
 export const ROTULOS_ETAPA: Record<EtapaFunilAquisicao, string> = {
   visita_site: 'Visitou o site',
