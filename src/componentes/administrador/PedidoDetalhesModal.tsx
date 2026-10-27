@@ -1,10 +1,12 @@
+import { previsaoEmSegundos } from '../../servicos/valoresIfood'
+import { useAgora } from '../../servicos/useAgora'
 import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, Clock3, CreditCard, KeyRound, MapPin, Navigation, Package, Phone, Printer, Truck, UserRound, X } from 'lucide-react'
 import logoIfood from '../../imagens/social/ifood.svg'
 import { useAuth } from '../../contextos/useAuth'
 import { imprimirComanda } from '../../servicos/comanda'
 import { cancellationReasons, externalOrder, localOrder, orderCommand, orderTracking, validatePickupCode, type CentralOrder, type IfoodAction, type Tracking } from '../../servicos/ifoodApi'
-import { dataHora, estadoPedido, estadosIfood, estadosSincronizacao, horaPedido, moeda, nomesAcoes, responsavelEntrega } from '../../servicos/pedidoApresentacao'
+import { dataPedido, dataHora, estadoPedido, estadosIfood, estadosSincronizacao, horaPedido, moeda, nomesAcoes, responsavelEntrega } from '../../servicos/pedidoApresentacao'
 import NegociacaoIfood from './NegociacaoIfood'
 import { PrazoConfirmacao } from './PrazoIfood'
 
@@ -49,12 +51,14 @@ function ColetaIfood({ pedidoId, codigo }: { pedidoId: number; codigo: string })
 
 function RastreamentoIfood({ pedidoId }: { pedidoId: number }) {
   const [tracking, setTracking] = useState<Tracking | null>(null)
+  const [receivedAt, setReceivedAt] = useState(0)
+  const agora = useAgora()
   const [erro, setErro] = useState(false)
   useEffect(() => {
     let alive = true
     async function load() {
       if (document.hidden) return
-      try { const data = await orderTracking(pedidoId); if (alive) { setTracking(data); setErro(false) } }
+      try { const data = await orderTracking(pedidoId); if (alive) { setTracking(data); setReceivedAt(Date.now()); setErro(false) } }
       catch { if (alive) setErro(true) }
     }
     void load()
@@ -64,11 +68,16 @@ function RastreamentoIfood({ pedidoId }: { pedidoId: number }) {
   }, [pedidoId])
   if (erro && !tracking) return <p className="mt-2 text-xs text-slate-500">Localização do entregador indisponível no momento.</p>
   if (!tracking?.available) return null
+  const trackTime = dataPedido(tracking.trackDate)?.getTime()
+  const reference = typeof trackTime === 'number' && Number.isFinite(trackTime) ? trackTime : receivedAt
+  const coleta = previsaoEmSegundos(tracking.pickupEtaStart, reference, agora)
+  const entrega = previsaoEmSegundos(tracking.deliveryEtaEnd, reference, agora)
   const temPosicao = typeof tracking.latitude === 'number' && typeof tracking.longitude === 'number'
   return <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm">
     <p className="flex items-center gap-2 font-semibold"><Navigation size={16} /> Rastreamento do entregador</p>
-    {tracking.pickupEtaStart && <p className="mt-1">Chegada na loja prevista: {horaPedido(tracking.pickupEtaStart)}</p>}
-    {(tracking.deliveryEtaEnd || tracking.expectedDelivery) && <p className="mt-1">Entrega prevista: {horaPedido(tracking.deliveryEtaEnd ?? tracking.expectedDelivery)}</p>}
+    {coleta !== null && <p className="mt-1">Chegada à loja: {coleta}</p>}
+    {entrega !== null ? <p className="mt-1">Entrega: {entrega}</p> : tracking.expectedDelivery && <p className="mt-1">Entrega prevista: {horaPedido(tracking.expectedDelivery)}</p>}
+    {erro && <p className="mt-1 text-xs text-amber-800">Não foi possível atualizar. Exibindo a última previsão recebida.</p>}
     {temPosicao && <a className="mt-1 inline-block font-semibold underline" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${tracking.latitude},${tracking.longitude}`}>Ver localização no mapa</a>}
     {tracking.trackDate && <p className="mt-1 text-xs text-slate-500">Atualizado às {horaPedido(tracking.trackDate)}</p>}
   </div>

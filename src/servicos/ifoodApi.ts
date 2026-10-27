@@ -28,7 +28,7 @@ export type CentralOrder = {
 }
 type Money = { currency?: string; value?: string | number }
 export type DisputeAlternative = {
-  id: string; type: 'REFUND' | 'ADDITIONAL_TIME' | string
+  id: string; type: 'REFUND' | 'BENEFIT' | 'ADDITIONAL_TIME' | string
   metadata?: { maxAmount?: Money; allowedsAdditionalTimeInMinutes?: number[]; allowedsAdditionalTimeReasons?: string[] }
 }
 export type Dispute = {
@@ -40,7 +40,7 @@ export type Dispute = {
 }
 export type Tracking = {
   available: boolean; latitude?: number | null; longitude?: number | null; expectedDelivery?: string | null
-  pickupEtaStart?: string | null; deliveryEtaEnd?: string | null; trackDate?: string | null
+  pickupEtaStart?: number | null; deliveryEtaEnd?: number | null; trackDate?: string | null
 }
 export type CentralPage = {
   items: CentralOrder[]; total: number; skip: number; limit: number
@@ -88,4 +88,14 @@ export async function orderTracking(id: number) {
 
 export async function localOrder(id: number) {
   return json<CentralOrder>(await apiFetch(`/pedidos/centralizados/proprio/${id}`))
+}
+
+
+export async function disputeEvidence(id: number, disputeId: string, index: number) {
+  const response = await apiFetch(`/integracoes/ifood/pedidos/${id}/disputas/${encodeURIComponent(disputeId)}/evidencias/${index}`)
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(typeof body?.detail === 'string' ? body.detail : 'Não foi possível carregar a evidência.')
+  }
+  return response.blob()
 }

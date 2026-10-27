@@ -1,8 +1,11 @@
 import { useRef, useState } from 'react'
-import { Handshake, Paperclip } from 'lucide-react'
+import { Handshake } from 'lucide-react'
 import { answerDispute, type Dispute, type DisputeReply, type SyncCommand } from '../../servicos/ifoodApi'
 import { dataHora, dataPedido, estadosSincronizacao, moeda } from '../../servicos/pedidoApresentacao'
 import { tempoRestante, useAgora } from '../../servicos/useAgora'
+
+import EvidenciaIfood from './EvidenciaIfood'
+import { reaisDoHandshake } from '../../servicos/valoresIfood'
 
 const controle = 'rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-amarelo disabled:opacity-50'
 const tipos: Record<string, string> = {
@@ -46,15 +49,16 @@ export default function NegociacaoIfood({ pedidoId, dispute, podeResponder, onEn
     finally { setBusy(false) }
   }
 
-  const max = Number(alternativa?.metadata?.maxAmount?.value ?? 0)
+  const max = reaisDoHandshake(alternativa?.metadata?.maxAmount?.value)
+  const monetaria = alternativa?.type === 'REFUND' || alternativa?.type === 'BENEFIT'
   const valido = modo === 'accept' ? dispute.accept_reasons.length === 0 || Boolean(reason)
     : modo === 'reject' ? Boolean(reason.trim())
-    : alternativa?.type === 'REFUND' ? Number(amount) > 0 && Number(amount) <= max
+    : monetaria ? /^\d+(?:\.\d{1,2})?$/.test(amount) && Number(amount) > 0 && Number(amount) <= max
     : alternativa?.type === 'ADDITIONAL_TIME' ? Boolean(minutes && reason) : false
   function confirmar() {
     if (modo === 'accept') void enviar('accept', reason ? { reason } : {})
     else if (modo === 'reject') void enviar('reject', { reason: reason.trim() })
-    else if (alternativa?.type === 'REFUND') void enviar('alternative', { alternative_id: alternativa.id, amount: Number(amount).toFixed(2) })
+    else if (alternativa && monetaria) void enviar('alternative', { alternative_id: alternativa.id, amount })
     else if (alternativa) void enviar('alternative', { alternative_id: alternativa.id, minutes: Number(minutes), reason })
   }
 
@@ -65,8 +69,8 @@ export default function NegociacaoIfood({ pedidoId, dispute, podeResponder, onEn
     </div>
     <p className="mt-2 text-sm">{tipos[dispute.type ?? ''] ?? 'Solicitação do cliente'}{dispute.action === 'PARTIAL_CANCELLATION' ? ' · cancelamento parcial' : dispute.action === 'CANCELLATION' ? ' · cancelamento' : ''}</p>
     {dispute.message && <p className="mt-2 rounded-lg bg-white p-3 text-sm italic">“{dispute.message}”</p>}
-    {dispute.items.length > 0 && <ul className="mt-2 space-y-1 text-sm">{dispute.items.map((item, i) => <li key={item.id ?? i}>{item.quantity ?? 1} item(ns) · {item.reason ?? 'sem motivo'}{item.amount?.value !== undefined && ` · ${moeda(item.amount.value)}`}</li>)}</ul>}
-    {dispute.evidences.length > 0 && <p className="mt-2 flex flex-wrap gap-3 text-sm">{dispute.evidences.filter((e) => e.url?.startsWith('https://')).map((e, i) => <a key={i} href={e.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold underline"><Paperclip size={14} /> Evidência {i + 1}</a>)}</p>}
+    {dispute.items.length > 0 && <ul className="mt-2 space-y-1 text-sm">{dispute.items.map((item, i) => <li key={item.id ?? i}>{item.quantity ?? 1} item(ns) · {item.reason ?? 'sem motivo'}{item.amount?.value !== undefined && ` · ${moeda(reaisDoHandshake(item.amount.value))}`}</li>)}</ul>}
+    {dispute.evidences.length > 0 && <div className="mt-2 grid gap-2">{dispute.evidences.map((_evidence, i) => <EvidenciaIfood key={`${dispute.id}:${i}`} pedidoId={pedidoId} disputaId={dispute.id} indice={i} />)}</div>}
     <p className="mt-2 text-xs text-slate-600">Prazo: {dataHora(dispute.expires_at)} · Sem resposta: {dispute.timeout_action === 'REJECT_CANCELLATION' ? 'a solicitação é recusada automaticamente' : 'o iFood decide automaticamente (geralmente com reembolso)'}.</p>
 
     {dispute.pending ? <p role="status" className="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-800">{estadosSincronizacao[dispute.pending.state] ?? 'Resposta em acompanhamento'}{dispute.pending.error && <span className="block">{dispute.pending.error}</span>}</p>
@@ -74,7 +78,7 @@ export default function NegociacaoIfood({ pedidoId, dispute, podeResponder, onEn
       : !expirada && <>
         {modo === null && <div className="mt-3 flex flex-wrap gap-2">
           <button className={controle} onClick={() => abrir('accept')}>Aceitar</button>
-          {dispute.alternatives.map((a) => <button key={a.id} className={controle} onClick={() => abrir(a.id)}>{a.type === 'REFUND' ? 'Propor reembolso' : a.type === 'ADDITIONAL_TIME' ? 'Propor mais tempo' : 'Contraproposta'}</button>)}
+          {dispute.alternatives.map((a) => <button key={a.id} className={controle} onClick={() => abrir(a.id)}>{a.type === 'REFUND' ? 'Propor reembolso' : a.type === 'BENEFIT' ? 'Propor crédito' : a.type === 'ADDITIONAL_TIME' ? 'Propor mais tempo' : 'Contraproposta'}</button>)}
           <button className={`${controle} text-red-700`} onClick={() => abrir('reject')}>Recusar</button>
         </div>}
         {modo !== null && <div className="mt-3 space-y-3 rounded-lg bg-white p-3">
@@ -82,12 +86,12 @@ export default function NegociacaoIfood({ pedidoId, dispute, podeResponder, onEn
             ? <label className="block text-sm font-semibold">Motivo<select value={reason} onChange={(e) => setReason(e.target.value)} className={`${controle} mt-1 w-full font-normal`}><option value="">Selecione</option>{dispute.accept_reasons.map((r) => <option key={r} value={r}>{nome(r)}</option>)}</select></label>
             : <p className="text-sm">Aceitar a solicitação do cliente{dispute.action?.includes('CANCELLATION') ? ' cancela o pedido (ou os itens indicados) no iFood' : ''}.</p>)}
           {modo === 'reject' && <label className="block text-sm font-semibold">Motivo da recusa<textarea rows={2} maxLength={250} value={reason} onChange={(e) => setReason(e.target.value)} className={`${controle} mt-1 w-full font-normal`} /></label>}
-          {alternativa?.type === 'REFUND' && <label className="block text-sm font-semibold">Valor do reembolso (até {moeda(max)})<input type="number" inputMode="decimal" min="0.01" max={max} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className={`${controle} mt-1 w-full font-normal`} /></label>}
+          {monetaria && <label className="block text-sm font-semibold">{alternativa?.type === 'BENEFIT' ? 'Valor do crédito' : 'Valor do reembolso'} (até {moeda(max)})<input type="number" inputMode="decimal" min="0.01" max={max} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className={`${controle} mt-1 w-full font-normal`} /></label>}
           {alternativa?.type === 'ADDITIONAL_TIME' && <div className="grid gap-2 sm:grid-cols-2">
             <label className="block text-sm font-semibold">Tempo adicional<select value={minutes} onChange={(e) => setMinutes(e.target.value)} className={`${controle} mt-1 w-full font-normal`}><option value="">Selecione</option>{alternativa.metadata?.allowedsAdditionalTimeInMinutes?.map((m) => <option key={m} value={m}>{m} minutos</option>)}</select></label>
             <label className="block text-sm font-semibold">Motivo<select value={reason} onChange={(e) => setReason(e.target.value)} className={`${controle} mt-1 w-full font-normal`}><option value="">Selecione</option>{alternativa.metadata?.allowedsAdditionalTimeReasons?.map((r) => <option key={r} value={r}>{nome(r)}</option>)}</select></label>
           </div>}
-          {alternativa && !['REFUND', 'ADDITIONAL_TIME'].includes(alternativa.type) && <p className="text-sm">Esta contraproposta precisa ser respondida no Gestor iFood.</p>}
+          {alternativa && !['REFUND', 'BENEFIT', 'ADDITIONAL_TIME'].includes(alternativa.type) && <p className="text-sm">Esta contraproposta precisa ser respondida no Gestor iFood.</p>}
           <div className="flex gap-2"><button className={`${controle} border-amarelo bg-amarelo/90 font-semibold`} disabled={busy || !valido} onClick={confirmar}>Enviar resposta</button><button className={controle} disabled={busy} onClick={() => abrir(null)}>Voltar</button></div>
         </div>}
       </>}
