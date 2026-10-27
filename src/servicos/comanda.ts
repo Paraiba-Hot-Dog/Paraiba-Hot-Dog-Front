@@ -28,7 +28,7 @@ export function comandaHtml(order: CentralOrder) {
     .item { margin-top: 6px } .opcao { font-size: 12px } .obs { font-weight: 700; margin: 2px 0 0 10px; white-space: pre-line }
     .linha { display: flex; justify-content: space-between; gap: 8px } .destaque { font-weight: 700; font-size: 15px }
   </style></head><body>
-    <div class="centro"><div>iFood${p.isTest ? ' · TESTE' : ''}</div><h1>#${escapar(order.nome.replace(/^iFood #/, ''))}</h1><div>${escapar(dataHora(order.created_at))}</div></div>
+    <div class="centro"><div>iFood</div><h1>#${escapar(order.nome.replace(/^iFood #/, ''))}</h1><div>${escapar(dataHora(order.created_at))}</div></div>
     <hr><div class="destaque">${escapar(responsavelEntrega(order))}</div>${horario ? `<div>${escapar(horario)}</div>` : ''}
     ${p.customer?.name ? `<div>Cliente: ${escapar(p.customer.name)}</div>` : ''}
     <hr>${(p.items ?? []).map((item) => linhasItem(item)).join('')}

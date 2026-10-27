@@ -33,8 +33,6 @@ export function responsavelEntrega(order: CentralOrder) {
   if (order.order_type === 'DINE_IN') return 'Consumo na loja'
   if (order.order_type !== 'DELIVERY') return 'Modalidade ainda não informada'
   if (order.delivered_by === 'IFOOD') return 'Responsável pela entrega: iFood'
-  if (order.delivered_by === 'MERCHANT') return order.payload?.isTest
-    ? 'Pedido de teste gerado com entrega pela loja'
-    : 'Responsável pela entrega: restaurante'
+  if (order.delivered_by === 'MERCHANT') return 'Responsável pela entrega: restaurante'
   return 'Responsável pela entrega ainda não informado pelo iFood'
 }
