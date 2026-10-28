@@ -6,7 +6,6 @@ import {
   type ClienteApi,
   type MotivoAjustePontosApi,
 } from '../../../servicos/clientesApi'
-import SeletorJustificativa from './SeletorJustificativa'
 
 const MAX_OBSERVACAO = 150
 
@@ -78,9 +77,9 @@ export default function ModalPontosCliente({ cliente, onFechar, onSalvo }: Modal
     if (apenasDigitos !== '') setPontos(limitarPontos(Number(apenasDigitos)))
   }
 
-  function selecionarMotivo(id: number | null) {
+  function alternarMotivo(id: number) {
     setErro('')
-    setMotivoId(id)
+    setMotivoId((atual) => (atual === id ? null : id))
   }
 
   function fechar() {
@@ -216,36 +215,41 @@ export default function ModalPontosCliente({ cliente, onFechar, onSalvo }: Modal
             ) : motivos.length === 0 ? (
               <p className="font-barlow text-sm text-cinza-base">Nenhuma justificativa cadastrada.</p>
             ) : (
-              <>
-                <SeletorJustificativa
-                  motivos={motivos}
-                  selecionadoId={motivoId}
-                  onSelecionar={selecionarMotivo}
-                  disabled={salvando}
-                />
-
-                {exigeObservacao && (
-                  <label className="grid gap-1.5">
-                    <span className="flex items-center justify-between text-xs font-black uppercase tracking-[0.14em] text-cinza-base">
-                      Descreva a justificativa
-                      <span className={observacao.length >= MAX_OBSERVACAO ? 'text-red-600' : ''}>
-                        {observacao.length}/{MAX_OBSERVACAO}
-                      </span>
-                    </span>
-                    <textarea
-                      value={observacao}
-                      onChange={(event) => {
-                        setErro('')
-                        setObservacao(event.target.value.slice(0, MAX_OBSERVACAO))
-                      }}
-                      maxLength={MAX_OBSERVACAO}
-                      autoFocus
-                      className="min-h-24 rounded-xl border border-[#d8dee8] bg-white px-3 py-3 font-barlow text-sm outline-none focus:border-amarelo"
-                      placeholder="Motivo da alteração de pontos"
+              motivos.map((motivo) => (
+                <div key={motivo.id} className="grid gap-2">
+                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#d8dee8] px-3 py-2.5 font-barlow text-sm text-preto-v1 transition hover:bg-[#f7f9fc] has-checked:border-amarelo has-checked:bg-amarelo/10">
+                    <input
+                      type="checkbox"
+                      checked={motivoId === motivo.id}
+                      onChange={() => alternarMotivo(motivo.id)}
+                      className="size-4 accent-preto-v1"
                     />
+                    {motivo.descricao}
                   </label>
-                )}
-              </>
+
+                  {motivo.exige_observacao && motivoId === motivo.id && (
+                    <label className="grid gap-1.5">
+                      <span className="flex items-center justify-between text-xs font-black uppercase tracking-[0.14em] text-cinza-base">
+                        Descreva a justificativa
+                        <span className={observacao.length >= MAX_OBSERVACAO ? 'text-red-600' : ''}>
+                          {observacao.length}/{MAX_OBSERVACAO}
+                        </span>
+                      </span>
+                      <textarea
+                        value={observacao}
+                        onChange={(event) => {
+                          setErro('')
+                          setObservacao(event.target.value.slice(0, MAX_OBSERVACAO))
+                        }}
+                        maxLength={MAX_OBSERVACAO}
+                        autoFocus
+                        className="min-h-24 rounded-xl border border-[#d8dee8] bg-white px-3 py-3 font-barlow text-sm outline-none focus:border-amarelo"
+                        placeholder="Motivo da alteração de pontos"
+                      />
+                    </label>
+                  )}
+                </div>
+              ))
             )}
           </fieldset>
 
