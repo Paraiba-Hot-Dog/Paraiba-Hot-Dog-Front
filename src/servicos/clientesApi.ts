@@ -48,10 +48,47 @@ export async function criarClienteApi(data: {
   return (await response.json()) as ClienteApi
 }
 
+export async function obterClienteApi(id: number) {
+  const response = await apiFetch(`/clientes/${id}`)
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { detail?: string } | null
+    throw new Error(body?.detail ?? `Erro ${response.status} ao carregar cliente`)
+  }
+
+  return (await response.json()) as ClienteApi
+}
+
 export type MotivoAjustePontosApi = {
   id: number
   descricao: string
   exige_observacao: boolean
+  ativo: boolean
+}
+
+export type HistoricoAjustePontosApi = {
+  id: number
+  cliente_id: number
+  motivo: MotivoAjustePontosApi
+  observacao: string | null
+  /** Variação do saldo: positiva ao adicionar, negativa ao remover. */
+  quantidade: number
+  pontos_anterior: number
+  pontos_atual: number
+  usuario_id: number | null
+  usuario_nome: string | null
+  data_ajuste: string
+}
+
+export async function listarHistoricoPontosApi(clienteId: number) {
+  const response = await apiFetch(`/clientes/${clienteId}/pontos/historico`)
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { detail?: string } | null
+    throw new Error(body?.detail ?? `Erro ${response.status} ao carregar histórico de pontos`)
+  }
+
+  return (await response.json()) as HistoricoAjustePontosApi[]
 }
 
 export type AjustePontosApi = {
@@ -83,14 +120,59 @@ export async function atualizarClienteApi(id: number, data: ClienteUpdateApi) {
   return (await response.json()) as ClienteApi
 }
 
-export async function listarMotivosAjustePontosApi() {
-  const response = await apiFetch('/clientes/pontos/motivos')
+/** apenasAtivos = false inclui as justificativas desativadas (tela de auditoria). */
+export async function listarMotivosAjustePontosApi(apenasAtivos = true) {
+  const response = await apiFetch('/clientes/pontos/motivos', {
+    params: { apenas_ativos: apenasAtivos },
+  })
 
   if (!response.ok) {
     throw new Error(`Erro ${response.status} ao carregar justificativas`)
   }
 
   return (await response.json()) as MotivoAjustePontosApi[]
+}
+
+export type MotivoAjustePontosFormApi = {
+  descricao?: string
+  exige_observacao?: boolean
+  ativo?: boolean
+}
+
+async function lerErroMotivo(response: Response, padrao: string) {
+  const body = await response.json().catch(() => null) as { detail?: unknown } | null
+  return new Error(typeof body?.detail === 'string' ? body.detail : `Erro ${response.status} ${padrao}`)
+}
+
+export async function criarMotivoAjustePontosApi(dados: { descricao: string; exige_observacao: boolean }) {
+  const response = await apiFetch('/clientes/pontos/motivos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dados),
+  })
+
+  if (!response.ok) throw await lerErroMotivo(response, 'ao cadastrar justificativa')
+
+  return (await response.json()) as MotivoAjustePontosApi
+}
+
+export async function atualizarMotivoAjustePontosApi(id: number, dados: MotivoAjustePontosFormApi) {
+  const response = await apiFetch(`/clientes/pontos/motivos/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dados),
+  })
+
+  if (!response.ok) throw await lerErroMotivo(response, 'ao atualizar justificativa')
+
+  return (await response.json()) as MotivoAjustePontosApi
+}
+
+/** O back apenas desativa a justificativa, preservando o historico que ja a utilizou. */
+export async function excluirMotivoAjustePontosApi(id: number) {
+  const response = await apiFetch(`/clientes/pontos/motivos/${id}`, { method: 'DELETE' })
+
+  if (!response.ok) throw await lerErroMotivo(response, 'ao excluir justificativa')
 }
 
 export function formatarTelefone(telefone: string) {
