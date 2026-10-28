@@ -5,7 +5,6 @@ import EdicaoDuvidasFrequentes from './EdicaoDuvidasFrequentes'
 import EdicaoUnidades from './EdicaoUnidades'
 import GestaoUsuarios from './GestaoUsuarios'
 import GestaoClientes from './GestaoClientes'
-import AuditoriaJustificativas from './AuditoriaJustificativas'
 import EdicaoAvaliacao from './EdicaoAvaliacao'
 import EdicaoSobreNos from './EdicaoSobreNos'
 
@@ -55,7 +54,6 @@ export default function ModalConfiguracoes({
           <EdicaoDuvidasFrequentes onNavigate={onFechar} />
           <GestaoUsuarios onNavigate={onFechar} />
           <GestaoClientes onNavigate={onFechar} />
-          <AuditoriaJustificativas onNavigate={onFechar} />
           <EdicaoAvaliacao onNavigate={onFechar} />
           <EdicaoSobreNos onNavigate={onFechar} />
         </div>

@@ -1,11 +1,9 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { useEffect } from 'react'
 import CardapioAdm from './telas/administrador/CardapioAdm'
 import Painel from './telas/administrador/Painel'
 import GestaoUnidades from './telas/administrador/GestaoUnidades'
 import GestaoUsuarios from './telas/administrador/GestaoUsuarios'
 import GestaoClientes from './telas/administrador/GestaoClientes'
-import HistoricoPontosCliente from './telas/administrador/HistoricoPontosCliente'
-import AuditoriaJustificativas from './telas/administrador/AuditoriaJustificativas'
 import GestaoBlog from './telas/administrador/GestaoBlog'
 import GestaoAvaliacoes from './telas/administrador/GestaoAvaliacoes'
 import GestaoDuvidasFrequentes from './telas/administrador/GestaoDuvidasFrequentes'
@@ -14,6 +12,7 @@ import { useAuth } from './contextos/useAuth'
 import Cardapio from './telas/usuario/Cardapio'
 import CartaoFidelidade from './telas/usuario/CartaoFidelidade'
 import Cozinha from './telas/administrador/Cozinha'
+import Dashboard from './telas/administrador/Dashboard'
 import Inicio from './telas/usuario/Inicio'
 import Login from './telas/usuario/Login'
 import SobreNos from './telas/usuario/SobreNos'
@@ -22,9 +21,6 @@ import RedefinirSenha from './telas/usuario/RedefinirSenha'
 import UnidadeAraucarias from './telas/usuario/UnidadeAraucarias'
 import AnotarPedidos from './telas/administrador/AnotarPedidos'
 import type { NomePermissaoApi } from './servicos/usuariosApi'
-
-// Carregada sob demanda para a biblioteca de gráficos não pesar nas outras telas.
-const Dashboard = lazy(() => import('./telas/administrador/Dashboard'))
 
 export default function App() {
   const { pathname, hash } = window.location
@@ -80,10 +76,7 @@ export default function App() {
     return <AcessoNegado />
   }
 
-  if (
-    (pathname === '/admin/configuracoes/sobre-nos' || pathname === '/admin/configuracoes/justificativas') &&
-    !hasRole('administrador')
-  ) {
+  if (pathname === '/admin/configuracoes/sobre-nos' && !hasRole('administrador')) {
     return <AcessoNegado />
   }
 
@@ -101,15 +94,6 @@ export default function App() {
 
   if (pathname === '/admin/configuracoes/clientes') {
     return <GestaoClientes />
-  }
-
-  const historicoClienteId = obterIdHistoricoCliente(pathname)
-  if (historicoClienteId !== null) {
-    return <HistoricoPontosCliente clienteId={historicoClienteId} />
-  }
-
-  if (pathname === '/admin/configuracoes/justificativas') {
-    return <AuditoriaJustificativas />
   }
 
   if (pathname === '/admin/configuracoes/unidades') {
@@ -137,11 +121,7 @@ export default function App() {
   }
 
   if (pathname === '/dashboard' || pathname === '/admin/dashboard') {
-    return (
-      <Suspense fallback={<CarregandoAcesso />}>
-        <Dashboard />
-      </Suspense>
-    )
+    return <Dashboard />
   }
 
   if (pathname === '/cozinha' || pathname === '/admin/cozinha') {
@@ -194,8 +174,6 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin/cardapio') return `Cardápio Admin | ${baseTitle}`
   if (pathname === '/admin/configuracoes/usuarios') return `Usuários | ${baseTitle}`
   if (pathname === '/admin/configuracoes/clientes') return `Clientes | ${baseTitle}`
-  if (obterIdHistoricoCliente(pathname) !== null) return `Histórico de Pontos | ${baseTitle}`
-  if (pathname === '/admin/configuracoes/justificativas') return `Edição de Justificativas | ${baseTitle}`
   if (pathname === '/admin/configuracoes/unidades') return `Unidades | ${baseTitle}`
   if (pathname === '/admin/configuracoes/blog') return `Blog | ${baseTitle}`
   if (pathname === '/admin/configuracoes/avaliacoes') return `Avaliações | ${baseTitle}`
@@ -219,11 +197,6 @@ function getRequiredPermission(pathname: string): NomePermissaoApi | null {
   }
 
   return null
-}
-
-function obterIdHistoricoCliente(pathname: string) {
-  const correspondencia = /^\/admin\/configuracoes\/clientes\/(\d+)\/?$/.exec(pathname)
-  return correspondencia ? Number(correspondencia[1]) : null
 }
 
 function RedirectTo({ href }: { href: string }) {
