@@ -1,8 +1,9 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, ChevronDown, Plus, Search, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Plus, X } from "lucide-react";
 import BarraDeNavegacao from "../../componentes/usuario/BarraDeNavegacaoUsuario";
 import Rodape from "../../componentes/usuario/Rodape";
 import iconeIfood from "../../imagens/social/ifood.svg";
+import imagemSmash from "../../imagens/logos/img-smash-home.svg";
 import type { ProdutoCardapio, SecaoCardapio } from "../../model/cardapio";
 import { listarSecoesCardapio } from "../../repository/cardapioRepository";
 import { listarUnidades, type Unidade } from "../../servicos/api";
@@ -13,7 +14,6 @@ const ALTURA_CABECALHO = 64;
 const TOLERANCIA_SECAO_ATIVA = 8;
 const LINK_IFOOD =
   "https://www.ifood.com.br/delivery/brasilia-df/paraiba-hot-dog-sul-aguas-claras/6b414c09-98ff-427f-9c06-1b00ad1438fe";
-const NOME_PRODUTO_DESTAQUE = "paraibano";
 
 const TAMANHOS = [
   { sufixo: /\s+duplo$/i, rotulo: "Duplo", ordem: 1 },
@@ -43,6 +43,15 @@ type ProdutoSelecionado = {
 type BlocoCardapio =
   | { tipo: "cards"; secao: SecaoAgrupada }
   | { tipo: "lista"; secoes: SecaoAgrupada[] };
+
+type ItemVitrine = { grupo: GrupoProduto; categoria: string };
+
+// Posição de cada foto da vitrine: a primeira fica na frente, as outras em leque atrás.
+const POSICOES_VITRINE = [
+  "left-1/2 top-0 z-20 w-[44%] -translate-x-1/2",
+  "left-[4%] top-[14%] z-10 w-[33%] -rotate-[7deg]",
+  "right-[4%] top-[10%] z-10 w-[33%] rotate-[6deg]",
+];
 
 const formatadorPreco = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -133,6 +142,32 @@ function montarBlocos(secoes: SecaoAgrupada[]): BlocoCardapio[] {
   });
 
   return blocos;
+}
+
+// Alterna entre as categorias de lanche para a vitrine não mostrar só um tipo.
+function escolherVitrine(secoes: SecaoAgrupada[], limite: number) {
+  const filas = secoes
+    .filter((secao) => !secao.destaque)
+    .map((secao) => ({
+      categoria: secao.titulo,
+      grupos: secao.grupos.filter((grupo) =>
+        imagemDoProduto(grupo.opcoes[0].produto),
+      ),
+    }));
+  const escolhidos: ItemVitrine[] = [];
+
+  for (let posicao = 0; escolhidos.length < limite; posicao++) {
+    const daVez = filas.filter((fila) => fila.grupos[posicao]);
+    if (!daVez.length) break;
+
+    daVez.forEach((fila) => {
+      if (escolhidos.length < limite) {
+        escolhidos.push({ grupo: fila.grupos[posicao], categoria: fila.categoria });
+      }
+    });
+  }
+
+  return escolhidos;
 }
 
 function ImagemProduto({
@@ -298,66 +333,84 @@ function CardProduto({
   );
 }
 
-function CardDestaque({
-  selecionado,
+function VitrineHero({
+  itens,
+  carregando,
   onSelect,
 }: {
-  selecionado: ProdutoSelecionado;
-  onSelect: (selecionado: ProdutoSelecionado) => void;
+  itens: ItemVitrine[];
+  carregando: boolean;
+  onSelect: (item: ItemVitrine) => void;
 }) {
-  const { grupo } = selecionado;
-  const { produto } = grupo.opcoes[selecionado.indice];
-  const { normal, combo } = precosDoProduto(produto);
-  const imagem = imagemDoProduto(produto);
+  if (carregando) {
+    return (
+      <div aria-hidden className="relative aspect-[16/10] w-full">
+        {POSICOES_VITRINE.map((posicao) => (
+          <div
+            key={posicao}
+            className={`absolute aspect-[3/4] animate-pulse rounded-[22px] bg-zinc-800 ${posicao}`}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (!itens.length) {
+    return (
+      <img
+        src={imagemSmash}
+        alt=""
+        aria-hidden
+        className="mx-auto h-auto w-full max-w-md object-contain"
+      />
+    );
+  }
 
   return (
-    <article className="relative min-h-[22rem] overflow-hidden rounded-[22px] bg-preto-v3 min-[960px]:min-h-[27rem]">
-      <ImagemProduto
-        key={imagem}
-        src={imagem}
-        alt={grupo.nome}
-        className="absolute inset-0 h-full w-full"
-      />
+    <div className="relative aspect-[16/10] w-full">
       <div
         aria-hidden
-        className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,10,0)_30%,rgba(10,10,10,0.94)_100%)]"
+        className="absolute inset-[12%] rounded-full bg-amarelo/15 blur-3xl"
       />
 
-      <span className="absolute left-4 top-4 rounded-full bg-amarelo px-3 py-1.5 font-barlow text-xs font-extrabold uppercase tracking-widest text-preto-v1">
-        Destaque da casa
-      </span>
+      {itens.map((item, ordem) => {
+        const imagem = imagemDoProduto(item.grupo.opcoes[0].produto);
+        const frente = ordem === 0;
 
-      <div className="absolute inset-x-0 bottom-0 flex flex-col gap-2.5 p-6 min-[640px]:p-7">
-        <h2 className="font-barlow-condensed text-[clamp(2.75rem,8vw,3.75rem)] font-black uppercase leading-[0.9] text-branco">
-          {grupo.nome}
-        </h2>
-        <p className="line-clamp-2 max-w-md font-barlow text-[15px] leading-snug text-branco/85">
-          {produto.descricao}
-        </p>
-
-        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-4">
-          {normal && (
-            <p className="font-barlow-condensed text-4xl font-extrabold leading-none text-branco">
-              {formatarPreco(normal.preco)}
-              {combo && (
-                <span className="font-barlow text-sm font-semibold text-amarelo">
-                  {" "}
-                  · combo {formatarPreco(combo.preco)}
-                </span>
-              )}
-            </p>
-          )}
-
+        return (
           <button
+            key={item.grupo.id}
             type="button"
-            onClick={() => onSelect(selecionado)}
-            className="h-12 rounded-xl bg-branco px-5 font-barlow text-[15px] font-bold text-preto-v1 transition-colors hover:bg-amarelo"
+            onClick={() => onSelect(item)}
+            aria-label={`Ver detalhes de ${item.grupo.nome}`}
+            className={`group absolute overflow-hidden rounded-[22px] border border-branco/10 bg-preto-v3 shadow-[0_24px_48px_rgba(0,0,0,0.55)] outline-none transition-[scale,border-color] duration-300 hover:scale-[1.03] hover:border-amarelo/50 focus-visible:ring-2 focus-visible:ring-amarelo ${POSICOES_VITRINE[ordem]}`}
           >
-            Ver detalhes
+            <ImagemProduto
+              key={imagem}
+              src={imagem}
+              alt=""
+              className="aspect-[3/4] w-full transition-transform duration-700 group-hover:scale-105"
+            />
+            <span
+              aria-hidden
+              className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,10,0)_45%,rgba(10,10,10,0.92)_100%)]"
+            />
+            <span className="absolute inset-x-0 bottom-0 flex flex-col gap-1 p-4 text-left">
+              <span className="font-barlow text-[11px] font-extrabold uppercase tracking-[0.12em] text-amarelo">
+                {item.categoria}
+              </span>
+              <span
+                className={`font-barlow-condensed font-black uppercase leading-[0.95] text-branco ${
+                  frente ? "text-3xl" : "text-xl"
+                }`}
+              >
+                {item.grupo.nome}
+              </span>
+            </span>
           </button>
-        </div>
-      </div>
-    </article>
+        );
+      })}
+    </div>
   );
 }
 
@@ -645,7 +698,7 @@ function BarraCategorias({
     <ul
       ref={listaRef}
       aria-label="Categorias do cardápio"
-      className={`flex w-fit max-w-full min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain px-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${classeBarra}`}
+      className={`flex w-fit max-w-full min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain px-1.5 sem-barra-rolagem ${classeBarra}`}
     >
       {secoes.map((secao) => {
         const ativa = secao.id === secaoAtivaId;
@@ -676,15 +729,11 @@ function BarraCategorias({
 function NavegacaoCategorias({
   secoes,
   secaoAtivaId,
-  busca,
-  onBuscaChange,
   onSelecionarSecao,
   navRef,
 }: {
   secoes: SecaoAgrupada[];
   secaoAtivaId: string;
-  busca: string;
-  onBuscaChange: (busca: string) => void;
   onSelecionarSecao: (secaoId: string) => void;
   navRef: React.RefObject<HTMLElement | null>;
 }) {
@@ -694,8 +743,8 @@ function NavegacaoCategorias({
   return (
     <nav
       ref={navRef}
-      aria-label="Filtros e categorias do cardápio"
-      className="sticky top-16 z-[40] bg-zinc-950 py-4"
+      aria-label="Categorias do cardápio"
+      className="sticky top-16 z-[40] mt-6 bg-zinc-950 py-4 min-[960px]:mt-8"
     >
       <div className="flex flex-col gap-3 min-[900px]:flex-row min-[900px]:items-stretch">
         <div className="min-w-0 min-[900px]:flex-1">
@@ -706,20 +755,6 @@ function NavegacaoCategorias({
             onSelecionar={onSelecionarSecao}
           />
         </div>
-
-        <label
-          className={`flex items-center gap-2.5 px-4 transition-colors focus-within:border-amarelo min-[900px]:w-72 ${barraControle}`}
-        >
-          <span className="sr-only">Buscar no cardápio</span>
-          <Search aria-hidden className="h-[18px] w-[18px] shrink-0 text-branco/60" />
-          <input
-            type="search"
-            value={busca}
-            onChange={(event) => onBuscaChange(event.target.value)}
-            placeholder="Buscar no cardápio"
-            className="h-full min-w-0 flex-1 bg-transparent font-barlow text-[15px] text-branco outline-none placeholder:text-branco/50"
-          />
-        </label>
       </div>
     </nav>
   );
@@ -858,7 +893,6 @@ export default function Cardapio() {
   const [carregandoUnidades, setCarregandoUnidades] = useState(true);
   const [erroCarregamento, setErroCarregamento] = useState(false);
   const [erroUnidades, setErroUnidades] = useState(false);
-  const [busca, setBusca] = useState("");
   const [produtoSelecionado, setProdutoSelecionado] =
     useState<ProdutoSelecionado | null>(null);
   const [secaoAtivaId, setSecaoAtivaId] = useState(() =>
@@ -925,54 +959,12 @@ export default function Cardapio() {
     [secoes],
   );
 
-  const termoBusca = normalizarTexto(busca);
-  const secoesVisiveis = useMemo(() => {
-    if (!termoBusca) return secoesAgrupadas;
-
-    return secoesAgrupadas
-      .map((secao) => ({
-        ...secao,
-        grupos: secao.grupos.filter((grupo) =>
-          grupo.opcoes.some(({ produto }) =>
-            normalizarTexto(`${produto.nome} ${produto.descricao ?? ""}`).includes(
-              termoBusca,
-            ),
-          ),
-        ),
-      }))
-      .filter((secao) => secao.grupos.length > 0);
-  }, [secoesAgrupadas, termoBusca]);
-
-  const blocos = useMemo(() => montarBlocos(secoesVisiveis), [secoesVisiveis]);
-
-  const destaque = useMemo<ProdutoSelecionado | null>(() => {
-    const candidatos = secoesAgrupadas.flatMap((secao) =>
-      secao.destaque
-        ? []
-        : secao.grupos.map((grupo) => ({
-            grupo,
-            indice: 0,
-            categoria: secao.titulo,
-          })),
-    );
-
-    return (
-      candidatos.find(
-        ({ grupo }) => normalizarTexto(grupo.nome) === NOME_PRODUTO_DESTAQUE,
-      ) ??
-      candidatos.find(({ grupo }) => imagemDoProduto(grupo.opcoes[0].produto)) ??
-      null
-    );
-  }, [secoesAgrupadas]);
-
-  const totalProdutos = useMemo(
-    () =>
-      secoesVisiveis.reduce(
-        (total, secao) => total + contarOpcoes(secao.grupos),
-        0,
-      ),
-    [secoesVisiveis],
+  const blocos = useMemo(() => montarBlocos(secoesAgrupadas), [secoesAgrupadas]);
+  const vitrine = useMemo(
+    () => escolherVitrine(secoesAgrupadas, POSICOES_VITRINE.length),
+    [secoesAgrupadas],
   );
+
   const unidadeSelecionada = useMemo(
     () =>
       unidades.find((unidade) => unidade.id === unidadeSelecionadaId) ?? null,
@@ -985,7 +977,7 @@ export default function Cardapio() {
     },
     ...unidades.map((unidade) => ({ id: unidade.id, label: unidade.nome })),
   ];
-  const secaoAtivaExibida = secaoAtivaId || secoesVisiveis[0]?.id || "";
+  const secaoAtivaExibida = secaoAtivaId || secoesAgrupadas[0]?.id || "";
   const navRef = useRef<HTMLElement>(null);
   const secaoClicadaRef = useRef("");
   const [alturaNav, setAlturaNav] = useState(0);
@@ -1012,7 +1004,7 @@ export default function Cardapio() {
   }, [secoes, carregando]);
 
   useEffect(() => {
-    if (!secoesVisiveis.length) return;
+    if (!secoesAgrupadas.length) return;
 
     const atualizarSecaoAtiva = () => {
       const fimDaPagina =
@@ -1032,10 +1024,10 @@ export default function Cardapio() {
       const pontoAtivo = fimDaPagina
         ? window.scrollY + window.innerHeight - 1
         : window.scrollY + ALTURA_CABECALHO + alturaNav + TOLERANCIA_SECAO_ATIVA;
-      let secaoAtual = secoesVisiveis[0]?.id ?? "";
+      let secaoAtual = secoesAgrupadas[0]?.id ?? "";
       let topoAtual = -Infinity;
 
-      secoesVisiveis.forEach((secao) => {
+      secoesAgrupadas.forEach((secao) => {
         const elemento = document.getElementById(secao.id);
         if (!elemento) return;
 
@@ -1076,7 +1068,7 @@ export default function Cardapio() {
       window.removeEventListener("wheel", esquecerClique);
       window.removeEventListener("touchstart", esquecerClique);
     };
-  }, [secoesVisiveis, alturaNav]);
+  }, [secoesAgrupadas, alturaNav]);
 
   return (
     <>
@@ -1084,9 +1076,10 @@ export default function Cardapio() {
 
       <main className="min-h-screen overflow-x-clip bg-zinc-950 pt-[7rem] text-branco">
         <section className="pagina-container pt-6 pb-16 min-[768px]:pt-8">
-          <div className="grid items-stretch gap-8 min-[960px]:grid-cols-2 min-[960px]:gap-10">
+          <div className="grid items-center gap-8 min-[960px]:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] min-[960px]:gap-12">
             <div className="flex flex-col justify-center gap-5">
-              <p className="font-barlow text-sm font-bold uppercase tracking-[0.14em] text-amarelo">
+              <p className="flex items-center gap-3 font-barlow text-sm font-bold uppercase tracking-[0.14em] text-amarelo">
+                <span aria-hidden className="h-0.5 w-8 rounded-full bg-amarelo" />
                 Paraíba Hot Dog
               </p>
               <h1 className="font-barlow-condensed text-[clamp(4.5rem,15vw,9.5rem)] font-black uppercase leading-[0.85] text-branco">
@@ -1128,22 +1121,29 @@ export default function Cardapio() {
                   Não foi possível carregar as unidades. O cardápio completo continua disponível.
                 </p>
               )}
+
+              {!carregando && !erroCarregamento && unidadeSelecionada && (
+                <p className="font-barlow text-sm text-branco/60">
+                  Mostrando os itens disponíveis em {unidadeSelecionada.nome}.
+                </p>
+              )}
             </div>
 
-            {!carregando && destaque && (
-              <CardDestaque
-                selecionado={destaque}
-                onSelect={setProdutoSelecionado}
+            <div className="hidden min-[960px]:block">
+              <VitrineHero
+                itens={vitrine}
+                carregando={carregando}
+                onSelect={({ grupo, categoria }) =>
+                  setProdutoSelecionado({ grupo, indice: 0, categoria })
+                }
               />
-            )}
+            </div>
           </div>
 
           {!carregando && !erroCarregamento && (
             <NavegacaoCategorias
-              secoes={secoesVisiveis}
+              secoes={secoesAgrupadas}
               secaoAtivaId={secaoAtivaExibida}
-              busca={busca}
-              onBuscaChange={setBusca}
               onSelecionarSecao={selecionarSecao}
               navRef={navRef}
             />
@@ -1159,31 +1159,6 @@ export default function Cardapio() {
             </div>
           ) : (
             <>
-              <p className="font-barlow text-sm text-branco/60">
-                {termoBusca
-                  ? `${totalProdutos} ${totalProdutos === 1 ? "resultado" : "resultados"} para "${busca.trim()}"`
-                  : `${totalProdutos} itens disponíveis`}
-                {unidadeSelecionada ? ` em ${unidadeSelecionada.nome}` : ""}.
-              </p>
-
-              {termoBusca && secoesVisiveis.length === 0 && (
-                <div className="mt-12 rounded-[18px] bg-preto-v3 px-6 py-10 text-center">
-                  <p className="font-barlow-condensed text-3xl font-extrabold uppercase">
-                    Nada encontrado
-                  </p>
-                  <p className="mt-2 font-barlow text-branco/70">
-                    Tente outro nome ou ingrediente.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setBusca("")}
-                    className="mt-5 h-11 rounded-xl border border-branco/20 px-5 font-barlow text-sm font-semibold text-branco transition-colors hover:border-amarelo hover:text-amarelo"
-                  >
-                    Limpar busca
-                  </button>
-                </div>
-              )}
-
               <div>
                 {blocos.map((bloco) =>
                   bloco.tipo === "cards" ? (
