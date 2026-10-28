@@ -69,6 +69,15 @@ button:disabled,
   cursor: not-allowed;
 }
 
+/* Precisa de !important: a regra global de scrollbar em * fica fora de @layer e venceria a utility. */
+@utility sem-barra-rolagem {
+  scrollbar-width: none !important;
+
+  &::-webkit-scrollbar {
+    display: none !important;
+  }
+}
+
 @utility bg-texture-botao {
   background-color: #e0e6ed;
   background-image: linear-gradient(
