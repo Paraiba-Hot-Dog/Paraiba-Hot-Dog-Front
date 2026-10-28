@@ -5,6 +5,7 @@ import GestaoUnidades from './telas/administrador/GestaoUnidades'
 import GestaoUsuarios from './telas/administrador/GestaoUsuarios'
 import GestaoClientes from './telas/administrador/GestaoClientes'
 import HistoricoPontosCliente from './telas/administrador/HistoricoPontosCliente'
+import AuditoriaJustificativas from './telas/administrador/AuditoriaJustificativas'
 import GestaoBlog from './telas/administrador/GestaoBlog'
 import GestaoAvaliacoes from './telas/administrador/GestaoAvaliacoes'
 import GestaoDuvidasFrequentes from './telas/administrador/GestaoDuvidasFrequentes'
@@ -77,7 +78,10 @@ export default function App() {
     return <AcessoNegado />
   }
 
-  if (pathname === '/admin/configuracoes/sobre-nos' && !hasRole('administrador')) {
+  if (
+    (pathname === '/admin/configuracoes/sobre-nos' || pathname === '/admin/configuracoes/justificativas') &&
+    !hasRole('administrador')
+  ) {
     return <AcessoNegado />
   }
 
@@ -100,6 +104,10 @@ export default function App() {
   const historicoClienteId = obterIdHistoricoCliente(pathname)
   if (historicoClienteId !== null) {
     return <HistoricoPontosCliente clienteId={historicoClienteId} />
+  }
+
+  if (pathname === '/admin/configuracoes/justificativas') {
+    return <AuditoriaJustificativas />
   }
 
   if (pathname === '/admin/configuracoes/unidades') {
@@ -181,6 +189,7 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin/configuracoes/usuarios') return `Usuários | ${baseTitle}`
   if (pathname === '/admin/configuracoes/clientes') return `Clientes | ${baseTitle}`
   if (obterIdHistoricoCliente(pathname) !== null) return `Histórico de Pontos | ${baseTitle}`
+  if (pathname === '/admin/configuracoes/justificativas') return `Auditoria de Justificativas | ${baseTitle}`
   if (pathname === '/admin/configuracoes/unidades') return `Unidades | ${baseTitle}`
   if (pathname === '/admin/configuracoes/blog') return `Blog | ${baseTitle}`
   if (pathname === '/admin/configuracoes/avaliacoes') return `Avaliações | ${baseTitle}`
