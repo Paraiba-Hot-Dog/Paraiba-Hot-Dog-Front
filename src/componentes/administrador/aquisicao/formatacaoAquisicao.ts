@@ -24,16 +24,17 @@ export const DICAS_ETAPA: Record<EtapaFunilAquisicao, string> = {
 }
 
 const formatadorInteiro = new Intl.NumberFormat('pt-BR')
+// Mesmo formato do "Resumo operacional" (Dashboard.tsx): de 1 a 2 casas decimais.
 const formatadorPercentual = new Intl.NumberFormat('pt-BR', {
   minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
+  maximumFractionDigits: 2,
 })
 
 export function formatarNumero(valor: number) {
   return formatadorInteiro.format(valor)
 }
 
-/** Recebe o percentual da API em texto (ex.: "42.50") e devolve "42,5%". */
+/** Recebe o percentual da API em texto (ex.: "42.50") e devolve "42,5%"; "41.67" vira "41,67%". */
 export function formatarPercentual(valor: string | number) {
   return `${formatadorPercentual.format(Number(valor))}%`
 }
