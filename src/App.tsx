@@ -4,6 +4,7 @@ import Painel from './telas/administrador/Painel'
 import GestaoUnidades from './telas/administrador/GestaoUnidades'
 import GestaoUsuarios from './telas/administrador/GestaoUsuarios'
 import GestaoClientes from './telas/administrador/GestaoClientes'
+import HistoricoPontosCliente from './telas/administrador/HistoricoPontosCliente'
 import GestaoBlog from './telas/administrador/GestaoBlog'
 import GestaoAvaliacoes from './telas/administrador/GestaoAvaliacoes'
 import GestaoDuvidasFrequentes from './telas/administrador/GestaoDuvidasFrequentes'
@@ -98,6 +99,11 @@ export default function App() {
     return <GestaoClientes />
   }
 
+  const historicoClienteId = obterIdHistoricoCliente(pathname)
+  if (historicoClienteId !== null) {
+    return <HistoricoPontosCliente clienteId={historicoClienteId} />
+  }
+
   if (pathname === '/admin/configuracoes/unidades') {
     return <GestaoUnidades />
   }
@@ -180,6 +186,7 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin/cardapio') return `Cardápio Admin | ${baseTitle}`
   if (pathname === '/admin/configuracoes/usuarios') return `Usuários | ${baseTitle}`
   if (pathname === '/admin/configuracoes/clientes') return `Clientes | ${baseTitle}`
+  if (obterIdHistoricoCliente(pathname) !== null) return `Histórico de Pontos | ${baseTitle}`
   if (pathname === '/admin/configuracoes/unidades') return `Unidades | ${baseTitle}`
   if (pathname === '/admin/configuracoes/blog') return `Blog | ${baseTitle}`
   if (pathname === '/admin/configuracoes/avaliacoes') return `Avaliações | ${baseTitle}`
@@ -203,6 +210,11 @@ function getRequiredPermission(pathname: string): NomePermissaoApi | null {
   }
 
   return null
+}
+
+function obterIdHistoricoCliente(pathname: string) {
+  const correspondencia = /^\/admin\/configuracoes\/clientes\/(\d+)\/?$/.exec(pathname)
+  return correspondencia ? Number(correspondencia[1]) : null
 }
 
 function RedirectTo({ href }: { href: string }) {

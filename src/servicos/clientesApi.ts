@@ -48,10 +48,47 @@ export async function criarClienteApi(data: {
   return (await response.json()) as ClienteApi
 }
 
+export async function obterClienteApi(id: number) {
+  const response = await apiFetch(`/clientes/${id}`)
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { detail?: string } | null
+    throw new Error(body?.detail ?? `Erro ${response.status} ao carregar cliente`)
+  }
+
+  return (await response.json()) as ClienteApi
+}
+
 export type MotivoAjustePontosApi = {
   id: number
   descricao: string
   exige_observacao: boolean
+  ativo: boolean
+}
+
+export type HistoricoAjustePontosApi = {
+  id: number
+  cliente_id: number
+  motivo: MotivoAjustePontosApi
+  observacao: string | null
+  /** Variação do saldo: positiva ao adicionar, negativa ao remover. */
+  quantidade: number
+  pontos_anterior: number
+  pontos_atual: number
+  usuario_id: number | null
+  usuario_nome: string | null
+  data_ajuste: string
+}
+
+export async function listarHistoricoPontosApi(clienteId: number) {
+  const response = await apiFetch(`/clientes/${clienteId}/pontos/historico`)
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { detail?: string } | null
+    throw new Error(body?.detail ?? `Erro ${response.status} ao carregar histórico de pontos`)
+  }
+
+  return (await response.json()) as HistoricoAjustePontosApi[]
 }
 
 export type AjustePontosApi = {
