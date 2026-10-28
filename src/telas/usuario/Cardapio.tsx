@@ -826,7 +826,7 @@ function SecaoLista({
       className="rounded-[18px] border border-branco/[0.07] bg-preto-v3 p-5 min-[640px]:p-7"
     >
       <h2
-        className={`font-barlow-condensed text-[2.5rem] font-black uppercase leading-[0.9] transition-colors min-[640px]:text-5xl ${
+        className={`break-words font-barlow-condensed text-[clamp(1.75rem,9vw,2.5rem)] font-black uppercase leading-[0.9] transition-colors min-[640px]:text-5xl ${
           ativa ? "text-amarelo" : "text-branco"
         }`}
       >
@@ -850,12 +850,12 @@ function SecaoLista({
                   className="group w-full rounded-sm py-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-amarelo"
                 >
                   <span className="flex items-baseline gap-3">
-                    <span className="font-barlow-condensed text-[1.375rem] font-extrabold uppercase leading-tight text-branco transition-colors group-hover:text-amarelo">
+                    <span className="min-w-0 break-words font-barlow-condensed text-[1.375rem] font-extrabold uppercase leading-tight text-branco transition-colors group-hover:text-amarelo">
                       {grupo.nome}
                     </span>
                     <span
                       aria-hidden
-                      className="flex-1 -translate-y-1 border-b-2 border-dotted border-branco/20"
+                      className="min-w-4 flex-1 -translate-y-1 border-b-2 border-dotted border-branco/20"
                     />
                     {normal && (
                       <span className="shrink-0 font-barlow-condensed text-2xl font-extrabold text-amarelo">
@@ -1172,7 +1172,7 @@ export default function Cardapio() {
                   ) : (
                     <div
                       key={bloco.secoes.map((secao) => secao.id).join("-")}
-                      className="grid items-start gap-4 pt-14 min-[900px]:grid-cols-2 min-[900px]:gap-6"
+                      className="grid grid-cols-1 items-start gap-4 pt-14 min-[900px]:grid-cols-2 min-[900px]:gap-6"
                     >
                       {bloco.secoes.map((secao) => (
                         <SecaoLista
