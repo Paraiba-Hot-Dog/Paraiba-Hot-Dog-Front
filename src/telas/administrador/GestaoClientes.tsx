@@ -187,7 +187,15 @@ export default function GestaoClientes() {
                   <tbody>
                     {clientes.map((cliente) => (
                       <tr key={cliente.id} className="border-b border-[#eef1f5] last:border-0">
-                        <td className="px-5 py-4 font-barlow font-semibold">{cliente.nome}</td>
+                        <td className="px-5 py-4 font-barlow font-semibold">
+                          <a
+                            href={`/admin/configuracoes/clientes/${cliente.id}`}
+                            title="Ver histórico de pontos"
+                            className="underline-offset-4 transition hover:text-cinza-botao hover:underline"
+                          >
+                            {cliente.nome}
+                          </a>
+                        </td>
                         <td className="px-5 py-4 font-barlow text-sm text-cinza-base">{cliente.email || 'Não informado'}</td>
                         <td className="px-5 py-4 font-barlow text-sm text-cinza-base">{formatarTelefone(cliente.telefone)}</td>
                         <td className="px-5 py-4 text-center">
