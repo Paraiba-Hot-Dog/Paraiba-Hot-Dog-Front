@@ -56,7 +56,8 @@ export const CHAVE_NAO_MEDIR = 'paraiba_analytics_nao_medir'
  */
 export const VERSAO_COLETA = 1
 const PARAMETRO_NAO_MEDIR = 'analytics'
-const CAMINHO_EVENTOS = '/analytics/eventos'
+// Fora de /analytics/: a lista EasyPrivacy (uBlock Origin) bloqueia "/analytics/event".
+const CAMINHO_EVENTOS = '/eventos'
 
 function coletaAtiva() {
   return import.meta.env.VITE_ANALYTICS_ATIVO === 'true'

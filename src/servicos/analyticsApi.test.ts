@@ -175,7 +175,8 @@ describe('registrarEvento', () => {
       expect(envio.opcoes.credentials).toBe('omit')
       expect(envio.opcoes.keepalive).toBe(true)
       expect(String(envio.opcoes.body)).not.toContain('segredo')
-      expect(envio.url).toMatch(/\/analytics\/eventos$/)
+      expect(envio.url).toMatch(/\/eventos$/)
+      expect(envio.url).not.toContain('/analytics/')
       expect(Object.keys(envio.corpo).sort()).toEqual([
         'primeiro_na_visita',
         'produto_id',
