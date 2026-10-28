@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { CHAVE_NAO_MEDIR, CHAVE_VISITA, registrarEvento, registrarVisita } from './analyticsApi'
+import {
+  CHAVE_NAO_MEDIR,
+  CHAVE_VISITA,
+  VERSAO_COLETA,
+  registrarEvento,
+  registrarVisita,
+} from './analyticsApi'
 
 /**
  * Roda em ambiente `node`, com window, document, storages e fetch simulados.
@@ -179,7 +185,9 @@ describe('registrarEvento', () => {
         'utm_campaign',
         'utm_medium',
         'utm_source',
+        'versao_coleta',
       ])
+      expect(envio.corpo.versao_coleta).toBe(VERSAO_COLETA)
     }
   })
 

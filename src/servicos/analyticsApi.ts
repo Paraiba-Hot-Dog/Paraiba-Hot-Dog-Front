@@ -42,10 +42,19 @@ export type PayloadEventoAnalytics = OrigemVisita & {
   primeiro_na_visita: boolean
   unidade_id: number | null
   produto_id: number | null
+  versao_coleta: number
 }
 
 export const CHAVE_VISITA = 'paraiba_analytics_visita'
 export const CHAVE_NAO_MEDIR = 'paraiba_analytics_nao_medir'
+
+/**
+ * Versão das regras de disparo dos eventos. Incrementar sempre que mudar
+ * quando ou como algum evento é enviado (ex.: novo ponto de captura), para
+ * explicar degraus nos gráficos. Registrar a mudança no repositório Docs.
+ * O back aceita de 1 a 100.
+ */
+export const VERSAO_COLETA = 1
 const PARAMETRO_NAO_MEDIR = 'analytics'
 const CAMINHO_EVENTOS = '/analytics/eventos'
 
@@ -170,6 +179,7 @@ function registrarNoEstado(
     primeiro_na_visita: primeiro,
     unidade_id: unidadeId,
     produto_id: dados.produtoId ?? null,
+    versao_coleta: VERSAO_COLETA,
     ...estado.origem,
   }
 }
