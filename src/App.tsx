@@ -189,7 +189,7 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin/configuracoes/usuarios') return `Usuários | ${baseTitle}`
   if (pathname === '/admin/configuracoes/clientes') return `Clientes | ${baseTitle}`
   if (obterIdHistoricoCliente(pathname) !== null) return `Histórico de Pontos | ${baseTitle}`
-  if (pathname === '/admin/configuracoes/justificativas') return `Auditoria de Justificativas | ${baseTitle}`
+  if (pathname === '/admin/configuracoes/justificativas') return `Edição de Justificativas | ${baseTitle}`
   if (pathname === '/admin/configuracoes/unidades') return `Unidades | ${baseTitle}`
   if (pathname === '/admin/configuracoes/blog') return `Blog | ${baseTitle}`
   if (pathname === '/admin/configuracoes/avaliacoes') return `Avaliações | ${baseTitle}`

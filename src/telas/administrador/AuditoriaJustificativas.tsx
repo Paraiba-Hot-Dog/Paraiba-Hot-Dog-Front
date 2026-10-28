@@ -13,7 +13,7 @@ import {
 
 const MAX_DESCRICAO = 120
 
-// Mesmas colunas no cabecalho e nas linhas, para alinharem como uma tabela.
+// Colunas fixas para tag e botoes ficarem alinhados entre as linhas.
 const COLUNAS_LINHA = 'grid grid-cols-[minmax(0,1fr)_9rem_7rem_7rem] items-center gap-4'
 
 type FormularioJustificativa = {
@@ -157,7 +157,7 @@ export default function AuditoriaJustificativas() {
               Admin
             </p>
             <h1 className="font-barlow-condensed text-3xl font-black uppercase text-preto-v1 sm:text-5xl">
-              Auditoria de justificativas
+              Edição de justificativas
             </h1>
             <p className="mt-1 font-barlow text-sm text-cinza-base">
               Justificativas usadas nas alterações dos pontos de fidelidade dos clientes.
@@ -211,15 +211,6 @@ export default function AuditoriaJustificativas() {
           ) : (
             <div className="mt-5 overflow-x-auto rounded-xl border border-[#d8dee8]">
               <div className="min-w-160">
-                <div
-                  className={`${COLUNAS_LINHA} border-b border-[#e2e6ec] bg-[#f7f9fc] px-4 py-3 font-barlow text-xs font-bold uppercase tracking-wider text-cinza-base/70`}
-                  aria-hidden
-                >
-                  <span>Descrição</span>
-                  <span />
-                  <span className="text-center">Editar</span>
-                  <span className="text-center">Excluir</span>
-                </div>
                 <ul>
                   {justificativas.map((justificativa) => (
                     <ItemJustificativa
