@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react'
+import type { ReactElement } from 'react'
 import {
   ChefHat,
   ClipboardPen,
@@ -10,7 +10,6 @@ import {
 import { useAuth } from '../../../contextos/useAuth'
 import type { NomePermissaoApi } from '../../../servicos/usuariosApi'
 import BotaoOpcaoPainel from './BotaoOpcaoPainel'
-import ModalConfiguracoes from './ModalConfiguracoes'
 
 type OpcaoPainel = {
   rotulo: string
@@ -56,7 +55,7 @@ const opcoesPainel: OpcaoPainel[] = [
   },
   {
     rotulo: 'Configurações',
-    href: undefined,
+    href: '/admin/configuracoes',
     permissao: 'configuracoes',
     icone: (
       <span className="relative inline-flex h-9 w-9 items-center justify-center">
@@ -73,47 +72,23 @@ const opcoesPainel: OpcaoPainel[] = [
 ]
 
 export default function OpcoesPainel() {
-  const [modalConfiguracoesAberto, setModalConfiguracoesAberto] = useState(false)
   const { hasPermission } = useAuth()
 
-  function abrirModalConfiguracoes() {
-    setModalConfiguracoesAberto(true)
-  }
-
-  function fecharModalConfiguracoes() {
-    setModalConfiguracoesAberto(false)
-  }
-
   return (
-    <>
-      <div className="mt-8 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
-        {opcoesPainel.map(({ rotulo, href, icone, permissao }) => {
-          const permitido = rotulo === 'Pedidos' ? hasPermission('anotar_pedidos') || hasPermission('cozinha') : hasPermission(permissao)
+    <div className="mt-8 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+      {opcoesPainel.map(({ rotulo, href, icone, permissao }) => {
+        const permitido = rotulo === 'Pedidos' ? hasPermission('anotar_pedidos') || hasPermission('cozinha') : hasPermission(permissao)
 
-          return href ? (
-            <BotaoOpcaoPainel
-              key={rotulo}
-              rotulo={rotulo}
-              href={href}
-              icone={icone}
-              disabled={!permitido}
-            />
-          ) : (
-            <BotaoOpcaoPainel
-              key={rotulo}
-              rotulo={rotulo}
-              icone={icone}
-              onClick={abrirModalConfiguracoes}
-              disabled={!permitido}
-            />
-          )
-        })}
-      </div>
-
-      <ModalConfiguracoes
-        aberto={modalConfiguracoesAberto}
-        onFechar={fecharModalConfiguracoes}
-      />
-    </>
+        return (
+          <BotaoOpcaoPainel
+            key={rotulo}
+            rotulo={rotulo}
+            href={href ?? '/admin/configuracoes'}
+            icone={icone}
+            disabled={!permitido}
+          />
+        )
+      })}
+    </div>
   )
 }

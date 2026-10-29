@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import CardapioAdm from './telas/administrador/CardapioAdm'
 import Painel from './telas/administrador/Painel'
+import Configuracoes from './telas/administrador/Configuracoes'
 import GestaoUnidades from './telas/administrador/GestaoUnidades'
 import GestaoUsuarios from './telas/administrador/GestaoUsuarios'
 import GestaoClientes from './telas/administrador/GestaoClientes'
@@ -92,6 +93,10 @@ export default function App() {
 
   if (pathname === '/admin') {
     return <Painel />
+  }
+
+  if (pathname === '/admin/configuracoes') {
+    return <Configuracoes />
   }
 
   if (pathname === '/admin/cardapio') {
@@ -199,6 +204,7 @@ function getPageTitle(pathname: string) {
     return `Recuperar Senha | ${baseTitle}`
   }
   if (pathname === '/admin') return `Painel Administrativo | ${baseTitle}`
+  if (pathname === '/admin/configuracoes') return `Configurações | ${baseTitle}`
   if (pathname === '/admin/cardapio') return `Cardápio Admin | ${baseTitle}`
   if (pathname === '/admin/configuracoes/usuarios') return `Usuários | ${baseTitle}`
   if (pathname === '/admin/configuracoes/clientes') return `Clientes | ${baseTitle}`
@@ -223,7 +229,7 @@ function getRequiredPermission(pathname: string): NomePermissaoApi | null {
   if (pathname === '/admin/anotar-pedidos') return 'anotar_pedidos'
   if (pathname === '/dashboard' || pathname === '/admin/dashboard') return 'dashboard'
   if (pathname === '/cozinha' || pathname === '/admin/cozinha') return 'cozinha'
-  if (pathname === '/admin/cardapio' || pathname.startsWith('/admin/configuracoes/')) {
+  if (pathname === '/admin/cardapio' || pathname === '/admin/configuracoes' || pathname.startsWith('/admin/configuracoes/')) {
     return 'configuracoes'
   }
 
