@@ -1,9 +1,12 @@
 import { lazy, Suspense, useEffect } from 'react'
 import CardapioAdm from './telas/administrador/CardapioAdm'
 import Painel from './telas/administrador/Painel'
+import Configuracoes from './telas/administrador/Configuracoes'
 import GestaoUnidades from './telas/administrador/GestaoUnidades'
 import GestaoUsuarios from './telas/administrador/GestaoUsuarios'
 import GestaoClientes from './telas/administrador/GestaoClientes'
+import HistoricoPontosCliente from './telas/administrador/HistoricoPontosCliente'
+import AuditoriaJustificativas from './telas/administrador/AuditoriaJustificativas'
 import GestaoBlog from './telas/administrador/GestaoBlog'
 import GestaoAvaliacoes from './telas/administrador/GestaoAvaliacoes'
 import GestaoDuvidasFrequentes from './telas/administrador/GestaoDuvidasFrequentes'
@@ -18,6 +21,7 @@ import SobreNos from './telas/usuario/SobreNos'
 import RecuperarSenha from './telas/usuario/RecuperarSenha'
 import RedefinirSenha from './telas/usuario/RedefinirSenha'
 import UnidadeAraucarias from './telas/usuario/UnidadeAraucarias'
+import Pedidos from './telas/administrador/Pedidos'
 import AnotarPedidos from './telas/administrador/AnotarPedidos'
 import type { NomePermissaoApi } from './servicos/usuariosApi'
 
@@ -31,10 +35,7 @@ export default function App() {
   const linkDeRecuperacao = hashParams.get('type') === 'recovery' && Boolean(hashParams.get('access_token'))
   const linkInvalido = hashParams.get('error_code') === 'otp_expired' || descricaoLink.includes('email link')
 
-  if ((linkDeRecuperacao || linkInvalido) && pathname !== '/recuperar-senha') {
-    window.location.replace(`/recuperar-senha${hash}`)
-    return null
-  }
+
 
   const {
     isAuthenticated,
@@ -47,6 +48,11 @@ export default function App() {
   useEffect(() => {
     document.title = getPageTitle(pathname)
   }, [pathname])
+
+  if ((linkDeRecuperacao || linkInvalido) && pathname !== '/recuperar-senha') {
+    window.location.replace(`/recuperar-senha${hash}`)
+    return null
+  }
 
   if (pathname === '/admin/login') {
     if (isAuthenticated && hasRole('administrador')) {
@@ -78,12 +84,19 @@ export default function App() {
     return <AcessoNegado />
   }
 
-  if (pathname === '/admin/configuracoes/sobre-nos' && !hasRole('administrador')) {
+  if (
+    (pathname === '/admin/configuracoes/sobre-nos' || pathname === '/admin/configuracoes/justificativas') &&
+    !hasRole('administrador')
+  ) {
     return <AcessoNegado />
   }
 
   if (pathname === '/admin') {
     return <Painel />
+  }
+
+  if (pathname === '/admin/configuracoes') {
+    return <Configuracoes />
   }
 
   if (pathname === '/admin/cardapio') {
@@ -96,6 +109,15 @@ export default function App() {
 
   if (pathname === '/admin/configuracoes/clientes') {
     return <GestaoClientes />
+  }
+
+  const historicoClienteId = obterIdHistoricoCliente(pathname)
+  if (historicoClienteId !== null) {
+    return <HistoricoPontosCliente clienteId={historicoClienteId} />
+  }
+
+  if (pathname === '/admin/configuracoes/justificativas') {
+    return <AuditoriaJustificativas />
   }
 
   if (pathname === '/admin/configuracoes/unidades') {
@@ -116,6 +138,11 @@ export default function App() {
 
   if (pathname === '/admin/configuracoes/sobre-nos') {
     return <EdicaoSobreNos />
+  }
+
+  if (pathname === '/admin/pedidos') {
+    if (!hasPermission('anotar_pedidos') && !hasPermission('cozinha') && !hasRole('administrador')) return <AcessoNegado />
+    return <Pedidos />
   }
 
   if (pathname === '/admin/anotar-pedidos') {
@@ -177,9 +204,12 @@ function getPageTitle(pathname: string) {
     return `Recuperar Senha | ${baseTitle}`
   }
   if (pathname === '/admin') return `Painel Administrativo | ${baseTitle}`
+  if (pathname === '/admin/configuracoes') return `Configurações | ${baseTitle}`
   if (pathname === '/admin/cardapio') return `Cardápio Admin | ${baseTitle}`
   if (pathname === '/admin/configuracoes/usuarios') return `Usuários | ${baseTitle}`
   if (pathname === '/admin/configuracoes/clientes') return `Clientes | ${baseTitle}`
+  if (obterIdHistoricoCliente(pathname) !== null) return `Histórico de Pontos | ${baseTitle}`
+  if (pathname === '/admin/configuracoes/justificativas') return `Edição de Justificativas | ${baseTitle}`
   if (pathname === '/admin/configuracoes/unidades') return `Unidades | ${baseTitle}`
   if (pathname === '/admin/configuracoes/blog') return `Blog | ${baseTitle}`
   if (pathname === '/admin/configuracoes/avaliacoes') return `Avaliações | ${baseTitle}`
@@ -189,6 +219,7 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin/configuracoes/sobre-nos') return `Sobre Nós | ${baseTitle}`
   if (pathname === '/admin/anotar-pedidos') return `Anotar Pedidos | ${baseTitle}`
   if (pathname === '/dashboard' || pathname === '/admin/dashboard') return `Dashboard | ${baseTitle}`
+  if (pathname === '/admin/pedidos') return `Pedidos | ${baseTitle}`
   if (pathname === '/cozinha' || pathname === '/admin/cozinha') return `Cozinha | ${baseTitle}`
 
   return baseTitle
@@ -198,11 +229,16 @@ function getRequiredPermission(pathname: string): NomePermissaoApi | null {
   if (pathname === '/admin/anotar-pedidos') return 'anotar_pedidos'
   if (pathname === '/dashboard' || pathname === '/admin/dashboard') return 'dashboard'
   if (pathname === '/cozinha' || pathname === '/admin/cozinha') return 'cozinha'
-  if (pathname === '/admin/cardapio' || pathname.startsWith('/admin/configuracoes/')) {
+  if (pathname === '/admin/cardapio' || pathname === '/admin/configuracoes' || pathname.startsWith('/admin/configuracoes/')) {
     return 'configuracoes'
   }
 
   return null
+}
+
+function obterIdHistoricoCliente(pathname: string) {
+  const correspondencia = /^\/admin\/configuracoes\/clientes\/(\d+)\/?$/.exec(pathname)
+  return correspondencia ? Number(correspondencia[1]) : null
 }
 
 function RedirectTo({ href }: { href: string }) {

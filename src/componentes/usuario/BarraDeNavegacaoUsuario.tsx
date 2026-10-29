@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } f
 import { Menu, User, X } from 'lucide-react'
 import logoBranca from '../../imagens/logos/logo-branca.png'
 import logoPreta from '../../imagens/logos/logo-preta.png'
+import { useAuth } from '../../contextos/useAuth'
 
 const navLinks = [
   { label: 'Cardápio', href: '/cardapio' },
@@ -9,8 +10,6 @@ const navLinks = [
   { label: 'Sobre nós', href: '/sobre-nos' },
   { label: 'Cartão fidelidade', href: '/cartao-fidelidade' },
 ] as const
-
-const ADMIN_HREF = '/login'
 
 const MIN_GAP_RIGHT = 20
 const RIGHT_ACTION_WIDTH = 44
@@ -46,6 +45,7 @@ type NavbarProps = {
 }
 
 export default function Navbar({ variant = 'light' }: NavbarProps) {
+  const { isAuthenticated } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [useMobileMenu, setUseMobileMenu] = useState(false)
   const currentLocation = `${window.location.pathname}${window.location.hash}`
@@ -73,10 +73,9 @@ export default function Navbar({ variant = 'light' }: NavbarProps) {
     )
   }
 
-  const mobileLinks = [
-    ...navLinks,
-    { label: 'Acesso restrito', href: ADMIN_HREF },
-  ] as const
+  const mobileLinks = isAuthenticated
+    ? [...navLinks, { label: 'Acesso restrito', href: '/admin' }]
+    : navLinks
 
   const barRef = useRef<HTMLDivElement>(null)
   const logoRef = useRef<HTMLAnchorElement>(null)
@@ -92,13 +91,14 @@ export default function Navbar({ variant = 'light' }: NavbarProps) {
     const style = getComputedStyle(bar)
     const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
     const requiredNavWidth = measureList.scrollWidth
+    const rightWidth = isAuthenticated ? RIGHT_ACTION_WIDTH : 0
     const availableNavWidth =
-      bar.clientWidth - logo.offsetWidth - paddingX - RIGHT_ACTION_WIDTH - MIN_GAP_RIGHT
+      bar.clientWidth - logo.offsetWidth - paddingX - rightWidth - MIN_GAP_RIGHT
 
     const shouldUseMobileMenu = requiredNavWidth > availableNavWidth
     setUseMobileMenu(shouldUseMobileMenu)
     if (!shouldUseMobileMenu) setIsOpen(false)
-  }, [])
+  }, [isAuthenticated])
 
   useLayoutEffect(() => {
     checkLayout()
@@ -183,9 +183,9 @@ export default function Navbar({ variant = 'light' }: NavbarProps) {
 
         {!useMobileMenu && (
           <>
-            {/* Tablet / telas menores: títulos à direita (comportamento atual) */}
+            {/* Tablet / telas menores: títulos à direita */}
             <nav
-              className="relative z-10 flex min-w-0 flex-1 justify-center overflow-hidden pr-2 xl:hidden"
+              className="relative z-10 flex min-w-0 flex-1 justify-end overflow-hidden pr-2 xl:hidden"
               aria-label="Navegação principal"
             >
               <ul className="flex items-center gap-6 whitespace-nowrap md:gap-8">
@@ -213,22 +213,25 @@ export default function Navbar({ variant = 'light' }: NavbarProps) {
           </>
         )}
 
-        {useMobileMenu && <div className="min-w-0 flex-1" aria-hidden />}
+        {useMobileMenu && (
+          <>
+            <div className="min-w-0 flex-1" aria-hidden />
+            <button
+              type="button"
+              className={`relative z-10 ml-auto flex shrink-0 items-center justify-center p-2 ${iconClassName}`}
+              onClick={toggleMenu}
+              aria-expanded={isOpen}
+              aria-controls="mobile-menu"
+              aria-label={isOpen ? 'Fechar menu' : 'Abrir menu'}
+            >
+              {isOpen ? <X size={32} strokeWidth={2} /> : <Menu size={32} strokeWidth={2} />}
+            </button>
+          </>
+        )}
 
-        {useMobileMenu ? (
-          <button
-            type="button"
-            className={`relative z-10 ml-auto flex shrink-0 items-center justify-center p-2 ${iconClassName}`}
-            onClick={toggleMenu}
-            aria-expanded={isOpen}
-            aria-controls="mobile-menu"
-            aria-label={isOpen ? 'Fechar menu' : 'Abrir menu'}
-          >
-            {isOpen ? <X size={32} strokeWidth={2} /> : <Menu size={32} strokeWidth={2} />}
-          </button>
-        ) : (
+        {!useMobileMenu && isAuthenticated && (
           <a
-            href={ADMIN_HREF}
+            href="/admin"
             className={`relative z-10 ml-auto flex shrink-0 items-center justify-center p-2 transition-colors ${iconClassName}`}
             aria-label="Acesso administrativo"
           >

@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /cozinha
+Disallow: /login
+Disallow: /esqueci-senha
+Disallow: /recuperar-senha
+
+Sitemap: https://paraibahotdog.com.br/sitemap.xml

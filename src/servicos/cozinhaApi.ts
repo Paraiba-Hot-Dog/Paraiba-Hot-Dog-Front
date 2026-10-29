@@ -3,6 +3,7 @@ import { apiFetch } from './apiFetch'
 export type StatusCozinha = 'aberto' | 'preparando' | 'entregue' | 'cancelado'
 
 export type CozinhaItem = {
+  created_at?: string | null
   pedido_id: number
   nome_comanda: string
   lote: number
