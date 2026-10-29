@@ -20,6 +20,7 @@ import SobreNos from './telas/usuario/SobreNos'
 import RecuperarSenha from './telas/usuario/RecuperarSenha'
 import RedefinirSenha from './telas/usuario/RedefinirSenha'
 import UnidadeAraucarias from './telas/usuario/UnidadeAraucarias'
+import Pedidos from './telas/administrador/Pedidos'
 import AnotarPedidos from './telas/administrador/AnotarPedidos'
 import type { NomePermissaoApi } from './servicos/usuariosApi'
 
@@ -33,10 +34,7 @@ export default function App() {
   const linkDeRecuperacao = hashParams.get('type') === 'recovery' && Boolean(hashParams.get('access_token'))
   const linkInvalido = hashParams.get('error_code') === 'otp_expired' || descricaoLink.includes('email link')
 
-  if ((linkDeRecuperacao || linkInvalido) && pathname !== '/recuperar-senha') {
-    window.location.replace(`/recuperar-senha${hash}`)
-    return null
-  }
+
 
   const {
     isAuthenticated,
@@ -49,6 +47,11 @@ export default function App() {
   useEffect(() => {
     document.title = getPageTitle(pathname)
   }, [pathname])
+
+  if ((linkDeRecuperacao || linkInvalido) && pathname !== '/recuperar-senha') {
+    window.location.replace(`/recuperar-senha${hash}`)
+    return null
+  }
 
   if (pathname === '/admin/login') {
     if (isAuthenticated && hasRole('administrador')) {
@@ -132,6 +135,11 @@ export default function App() {
     return <EdicaoSobreNos />
   }
 
+  if (pathname === '/admin/pedidos') {
+    if (!hasPermission('anotar_pedidos') && !hasPermission('cozinha') && !hasRole('administrador')) return <AcessoNegado />
+    return <Pedidos />
+  }
+
   if (pathname === '/admin/anotar-pedidos') {
     return <AnotarPedidos />
   }
@@ -205,6 +213,7 @@ function getPageTitle(pathname: string) {
   if (pathname === '/admin/configuracoes/sobre-nos') return `Sobre Nós | ${baseTitle}`
   if (pathname === '/admin/anotar-pedidos') return `Anotar Pedidos | ${baseTitle}`
   if (pathname === '/dashboard' || pathname === '/admin/dashboard') return `Dashboard | ${baseTitle}`
+  if (pathname === '/admin/pedidos') return `Pedidos | ${baseTitle}`
   if (pathname === '/cozinha' || pathname === '/admin/cozinha') return `Cozinha | ${baseTitle}`
 
   return baseTitle
