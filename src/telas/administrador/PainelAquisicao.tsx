@@ -1,6 +1,8 @@
 import BarraDeNavegacaoAdmin, {
   CLASSE_OFFSET_BARRA_ADMIN,
 } from '../../componentes/administrador/BarraDeNavegacaoAdmin'
+import AnalisesAquisicao from '../../componentes/administrador/aquisicao/AnalisesAquisicao'
+import BarraFiltrosAquisicao from '../../componentes/administrador/aquisicao/BarraFiltrosAquisicao'
 import IndicadoresEFunilAquisicao from '../../componentes/administrador/aquisicao/IndicadoresEFunilAquisicao'
 
 /**
@@ -35,11 +37,11 @@ export default function PainelAquisicao() {
             </div>
 
             <div className="grid gap-4">
-              {/* 1. Barra de filtros (Pessoa B) */}
+              <BarraFiltrosAquisicao />
 
               <IndicadoresEFunilAquisicao />
 
-              {/* 3. Seções de análise (Pessoa B) */}
+              <AnalisesAquisicao />
             </div>
           </div>
         </section>
