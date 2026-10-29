@@ -85,3 +85,71 @@ export async function getAquisicao(filtro: FiltroAquisicao, signal?: AbortSignal
 
   return (await response.json()) as AquisicaoApi
 }
+
+export type OrigemCanalApi = {
+  canal: CanalAquisicao
+  visitantes: number
+  participacao: string | null
+  cliques_pedir: number
+  escopo_cliques: EscopoAquisicao
+  taxa_visita_clique: string | null
+  escopo_taxa: EscopoAquisicao
+}
+
+export type AcaoPorTipoApi = {
+  tipo: EtapaFunilAquisicao
+  total: number
+  escopo: EscopoAquisicao
+}
+
+export type AcoesGeradasApi = {
+  total_acoes: number
+  acoes_por_visita: string | null
+  escopo_acoes_por_visita: EscopoAquisicao
+  por_tipo: AcaoPorTipoApi[]
+}
+
+export type ProdutoVisualizadoApi = {
+  rank: number
+  produto_id: number | null
+  nome: string
+  visualizacoes: number
+  escopo: EscopoAquisicao
+}
+
+export type UnidadeComparacaoApi = {
+  unidade_id: number | null
+  nome: string
+  escolhas: number
+  participacao_escolhas: string | null
+  cliques_pedir: number
+  taxa_escolha_clique: string | null
+}
+
+export type AnalisesAquisicaoApi = {
+  origem: OrigemCanalApi[]
+  acoes: AcoesGeradasApi
+  produtos: ProdutoVisualizadoApi[]
+  unidades: UnidadeComparacaoApi[]
+}
+
+export async function getAnalisesAquisicao(filtro: FiltroAquisicao, signal?: AbortSignal) {
+  const response = await apiFetch('/analytics/aquisicao/analises', {
+    params: {
+      periodo: filtro.periodo,
+      unidade_id: filtro.unidadeId ?? undefined,
+      canal: filtro.canal ?? undefined,
+    },
+    signal,
+  })
+
+  if (response.status === 401) {
+    throw new Error('A API recusou a requisicao. Informe um token valido no localStorage ou nos cookies.')
+  }
+
+  if (!response.ok) {
+    throw new Error('Nao foi possivel carregar as analises de aquisicao da API.')
+  }
+
+  return (await response.json()) as AnalisesAquisicaoApi
+}

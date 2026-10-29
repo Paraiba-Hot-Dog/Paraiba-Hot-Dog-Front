@@ -1,9 +1,30 @@
-import type { EscopoAquisicao, EtapaFunilAquisicao } from '../../../servicos/aquisicaoApi'
+import type {
+  CanalAquisicao,
+  EscopoAquisicao,
+  EtapaFunilAquisicao,
+  FiltroAquisicao,
+  PeriodoAquisicao,
+} from '../../../servicos/aquisicaoApi'
 
 export const ROTULOS_ESCOPO: Record<EscopoAquisicao, string> = {
   site: 'Site inteiro',
   unidade: 'Só a unidade',
   unidade_sobre_site: 'Unidade ÷ site',
+}
+
+export const ROTULOS_PERIODO: Record<PeriodoAquisicao, string> = {
+  ultimos_7_dias: 'Últimos 7 dias',
+  ultimos_30_dias: 'Últimos 30 dias',
+  ultimos_90_dias: 'Últimos 90 dias',
+}
+
+export const ROTULOS_CANAL: Record<CanalAquisicao, string> = {
+  instagram: 'Instagram',
+  qrcode: 'QR Code',
+  campanha_outros: 'Outras campanhas',
+  busca: 'Busca',
+  outros_sites: 'Outros sites',
+  direto: 'Direto',
 }
 
 export const ROTULOS_ETAPA: Record<EtapaFunilAquisicao, string> = {
@@ -37,4 +58,17 @@ export function formatarNumero(valor: number) {
 /** Recebe o percentual da API em texto (ex.: "42.50") e devolve "42,5%"; "41.67" vira "41,67%". */
 export function formatarPercentual(valor: string | number) {
   return `${formatadorPercentual.format(Number(valor))}%`
+}
+
+const formatadorRazao = new Intl.NumberFormat('pt-BR', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+})
+
+export function formatarRazao(valor: string | number) {
+  return formatadorRazao.format(Number(valor))
+}
+
+export function contarFiltrosAtivos(filtro: FiltroAquisicao) {
+  return (filtro.unidadeId === null ? 0 : 1) + (filtro.canal === null ? 0 : 1)
 }
