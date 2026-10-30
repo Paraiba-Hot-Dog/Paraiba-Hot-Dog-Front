@@ -1,0 +1,40 @@
+import type { EscopoAquisicao, EtapaFunilAquisicao } from '../../../servicos/aquisicaoApi'
+
+export const ROTULOS_ESCOPO: Record<EscopoAquisicao, string> = {
+  site: 'Site inteiro',
+  unidade: 'Só a unidade',
+  unidade_sobre_site: 'Unidade ÷ site',
+}
+
+export const ROTULOS_ETAPA: Record<EtapaFunilAquisicao, string> = {
+  visita_site: 'Visitou o site',
+  abertura_cardapio: 'Abriu o cardápio',
+  selecao_unidade: 'Escolheu a unidade',
+  visualizacao_produto: 'Visualizou produto',
+  clique_pedir: 'Clique para pedir',
+}
+
+export const DICAS_ETAPA: Record<EtapaFunilAquisicao, string> = {
+  visita_site: 'Visitas ao site no período. Cada aba do navegador conta como uma visita.',
+  abertura_cardapio: 'Visitas que abriram o cardápio pelo menos uma vez.',
+  selecao_unidade: 'Visitas que escolheram uma unidade no seletor do cardápio.',
+  visualizacao_produto: 'Visitas que abriram o detalhe de pelo menos um produto.',
+  clique_pedir:
+    'Visitas que clicaram no link do iFood. Mostra intenção de compra, não venda confirmada.',
+}
+
+const formatadorInteiro = new Intl.NumberFormat('pt-BR')
+// Mesmo formato do "Resumo operacional" (Dashboard.tsx): de 1 a 2 casas decimais.
+const formatadorPercentual = new Intl.NumberFormat('pt-BR', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 2,
+})
+
+export function formatarNumero(valor: number) {
+  return formatadorInteiro.format(valor)
+}
+
+/** Recebe o percentual da API em texto (ex.: "42.50") e devolve "42,5%"; "41.67" vira "41,67%". */
+export function formatarPercentual(valor: string | number) {
+  return `${formatadorPercentual.format(Number(valor))}%`
+}
