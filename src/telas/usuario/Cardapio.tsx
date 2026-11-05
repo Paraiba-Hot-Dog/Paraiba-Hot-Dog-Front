@@ -7,6 +7,7 @@ import imagemSmash from "../../imagens/logos/img-smash-home.svg";
 import type { ProdutoCardapio, SecaoCardapio } from "../../model/cardapio";
 import { listarSecoesCardapio } from "../../repository/cardapioRepository";
 import { listarUnidades, type Unidade } from "../../servicos/api";
+import { registrarEvento } from "../../servicos/analyticsApi";
 
 // Altura do cabeçalho fixo do site (h-16).
 const ALTURA_CABECALHO = 64;
@@ -900,6 +901,19 @@ export default function Cardapio() {
   );
 
   useEffect(() => {
+    registrarEvento("abertura_cardapio");
+  }, []);
+
+  const abrirProduto =
+    (categoria: string) => (grupo: GrupoProduto, indice: number) => {
+      setProdutoSelecionado({ grupo, indice, categoria });
+      registrarEvento("visualizacao_produto", {
+        produtoId: grupo.opcoes[indice]?.produto.id ?? null,
+        unidadeId: unidadeSelecionadaId || null,
+      });
+    };
+
+  useEffect(() => {
     let ativo = true;
 
     listarSecoesCardapio(unidadeSelecionadaId || null, false, true)
@@ -986,9 +1000,6 @@ export default function Cardapio() {
     secaoClicadaRef.current = secaoId;
     setSecaoAtivaId(secaoId);
   };
-
-  const abrirProduto = (categoria: string) => (grupo: GrupoProduto, indice: number) =>
-    setProdutoSelecionado({ grupo, indice, categoria });
 
   useEffect(() => {
     const elemento = navRef.current;

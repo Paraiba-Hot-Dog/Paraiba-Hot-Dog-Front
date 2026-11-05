@@ -24,9 +24,10 @@ import UnidadeAraucarias from './telas/usuario/UnidadeAraucarias'
 import Pedidos from './telas/administrador/Pedidos'
 import AnotarPedidos from './telas/administrador/AnotarPedidos'
 import type { NomePermissaoApi } from './servicos/usuariosApi'
+import { registrarVisita } from './servicos/analyticsApi'
 
 // Carregada sob demanda para a biblioteca de gráficos não pesar nas outras telas.
-const Dashboard = lazy(() => import('./telas/administrador/Dashboard'))
+const PainelAnalytics = lazy(() => import('./telas/administrador/PainelAnalytics'))
 
 export default function App() {
   const { pathname, hash } = window.location
@@ -47,6 +48,7 @@ export default function App() {
 
   useEffect(() => {
     document.title = getPageTitle(pathname)
+    if (!isRotaAdministrativa(pathname)) registrarVisita()
   }, [pathname])
 
   if ((linkDeRecuperacao || linkInvalido) && pathname !== '/recuperar-senha') {
@@ -62,10 +64,7 @@ export default function App() {
     return <Login />
   }
 
-  const rotaAdministrativa =
-    pathname.startsWith('/admin') ||
-    pathname === '/dashboard' ||
-    pathname === '/cozinha'
+  const rotaAdministrativa = isRotaAdministrativa(pathname)
   const permissaoRota = getRequiredPermission(pathname)
 
   if (rotaAdministrativa && !isAuthenticated) {
@@ -152,7 +151,7 @@ export default function App() {
   if (pathname === '/dashboard' || pathname === '/admin/dashboard') {
     return (
       <Suspense fallback={<CarregandoAcesso />}>
-        <Dashboard />
+        <PainelAnalytics />
       </Suspense>
     )
   }
@@ -190,6 +189,14 @@ export default function App() {
   }
 
   return <Inicio />
+}
+
+function isRotaAdministrativa(pathname: string) {
+  return (
+    pathname.startsWith('/admin') ||
+    pathname === '/dashboard' ||
+    pathname === '/cozinha'
+  )
 }
 
 function getPageTitle(pathname: string) {
