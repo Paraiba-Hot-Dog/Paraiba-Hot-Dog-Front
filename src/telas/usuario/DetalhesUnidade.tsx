@@ -18,28 +18,29 @@ const MAPAS_POR_UNIDADE: Record<
   { mapsUrl: string; mapsEmbedUrl: string }
 > = {
   'aguas-claras-jequitiba': {
-    mapsUrl:
-      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Avenida+Jequitib%C3%A1/@-15.8386522,-48.0392587,19z',
+    mapsUrl: 'https://share.google/D6udP1Jf2EV3LXoLj',
     mapsEmbedUrl:
       'https://www.google.com/maps?q=-15.8386522,-48.0392587&z=19&output=embed',
   },
   'aguas-claras-jequitiba-praca-tangara': {
-    mapsUrl:
-      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Avenida+Jequitib%C3%A1/@-15.8386522,-48.0392587,19z',
+    mapsUrl: 'https://share.google/D6udP1Jf2EV3LXoLj',
     mapsEmbedUrl:
       'https://www.google.com/maps?q=-15.8386522,-48.0392587&z=19&output=embed',
   },
-  'aguas-claras-boulevard-norte-rua-ipe-amarelo': {
-    mapsUrl:
-      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Boulevard+Norte/@-15.8399623,-48.0196604,19z',
-    mapsEmbedUrl:
-      'https://www.google.com/maps?q=-15.8399623,-48.0196604&z=19&output=embed',
-  },
   'aguas-claras-araucarias': {
-    mapsUrl:
-      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Av.+das+Arauc%C3%A1rias/@-15.8400976,-48.0196774,19z',
+    mapsUrl: 'https://share.google/3iYxASbYCaqekza4o',
     mapsEmbedUrl:
       'https://www.google.com/maps?q=-15.8400976,-48.0196774&z=19&output=embed',
+  },
+  'samambaia-sul-quadra-qs-118-conjunto-6': {
+    mapsUrl: 'https://share.google/rmUBeu9cCzjSXEFH0',
+    mapsEmbedUrl:
+      'https://www.google.com/maps?q=Para%C3%ADba+Hot+Dog+Samambaia&output=embed',
+  },
+  'samambaia-sul': {
+    mapsUrl: 'https://share.google/rmUBeu9cCzjSXEFH0',
+    mapsEmbedUrl:
+      'https://www.google.com/maps?q=Para%C3%ADba+Hot+Dog+Samambaia&output=embed',
   },
 }
 
