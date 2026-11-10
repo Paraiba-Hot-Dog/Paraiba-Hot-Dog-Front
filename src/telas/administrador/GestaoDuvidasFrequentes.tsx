@@ -223,7 +223,7 @@ export default function GestaoDuvidasFrequentes() {
       await Promise.all(alteradas.map((item) => atualizarOrdemDuvidaApi(item.id, item.ordem)))
       setNotificacao(mensagemSucesso)
     } catch (error) {
-      setErro(`${mensagemErro(error)} A lista foi recarregada do servidor.`)
+      setErro(`${mensagemErro(error)} A lista foi atualizada.`)
       // Um PATCH pode ter falhado no meio; recarrega para nao deixar a tela mentindo.
       try {
         setDuvidas(await listarDuvidasApi(false))

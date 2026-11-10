@@ -37,7 +37,7 @@ export default function TopProdutos({ busca, produtos }: TopProdutosProps) {
           </thead>
           <tbody>
             {produtosVisiveis.map((produto) => (
-              <tr className="transition-colors hover:bg-[#f7fbff]" key={produto.produto_id}>
+              <tr className="transition-colors hover:bg-[#f7fbff]" key={`${produto.produto_id}-${produto.nome}-${produto.rank}`}>
                 <td className={`${CLASSE_CELULA} w-16`}>
                   <span
                     className={`inline-grid h-7 w-10 place-items-center rounded-md text-sm font-black ${

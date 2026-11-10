@@ -5,11 +5,12 @@ import BarraDeNavegacaoAdmin, {
 import ModalConfirmacaoSaida from '../../componentes/administrador/painel/ModalConfirmacaoSaida'
 import OpcoesPainel from '../../componentes/administrador/painel/OpcoesPainel'
 import SeletorUnidade from '../../componentes/administrador/painel/SeletorUnidade'
-import { listarUnidades } from '../../servicos/api'
+import { listarUnidades, type Unidade } from '../../servicos/api'
 import { useAuth } from '../../contextos/useAuth'
 
 export default function Painel() {
   const [unidades, setUnidades] = useState<string[]>([])
+  const [unidadesList, setUnidadesList] = useState<Unidade[]>([])
   const [unidadeSelecionada, setUnidadeSelecionada] = useState('')
   const [carregandoUnidades, setCarregandoUnidades] = useState(true)
   const [erroUnidades, setErroUnidades] = useState(false)
@@ -18,10 +19,7 @@ export default function Painel() {
   const unidadeUsuarioId = usuarioAtual?.unidade_id ?? null
 
   useEffect(() => {
-    if (isLoadingUser) {
-      setCarregandoUnidades(true)
-      return
-    }
+    if (isLoadingUser) return
 
     let ativo = true
 
@@ -32,9 +30,19 @@ export default function Painel() {
         const unidadesPermitidas = unidadeUsuarioId
           ? unidadesApi.filter((unidade) => unidade.id === unidadeUsuarioId)
           : unidadesApi
+        setUnidadesList(unidadesPermitidas)
         const nomes = unidadesPermitidas.map((unidade) => unidade.nome)
         setUnidades(nomes)
-        setUnidadeSelecionada(nomes[0] ?? '')
+
+        const unidadeSalvaId = Number(localStorage.getItem('admin_unidade_id'))
+        const unidadeSalva = unidadesPermitidas.find((u) => u.id === unidadeSalvaId)
+        const selecionada = unidadeSalva ?? unidadesPermitidas[0]
+
+        if (selecionada) {
+          setUnidadeSelecionada(selecionada.nome)
+          localStorage.setItem('admin_unidade_id', String(selecionada.id))
+          localStorage.setItem('admin_unidade_nome', selecionada.nome)
+        }
       })
       .catch(() => {
         if (ativo) setErroUnidades(true)
@@ -47,6 +55,15 @@ export default function Painel() {
       ativo = false
     }
   }, [isLoadingUser, unidadeUsuarioId])
+
+  function aoTrocarUnidade(nome: string) {
+    setUnidadeSelecionada(nome)
+    const encontrada = unidadesList.find((u) => u.nome === nome)
+    if (encontrada) {
+      localStorage.setItem('admin_unidade_id', String(encontrada.id))
+      localStorage.setItem('admin_unidade_nome', encontrada.nome)
+    }
+  }
 
   function abrirModalSair() {
     setModalSairAberto(true)
@@ -94,7 +111,7 @@ export default function Painel() {
               <SeletorUnidade
                 opcoes={unidades}
                 valor={unidadeSelecionada}
-                onChange={setUnidadeSelecionada}
+                onChange={aoTrocarUnidade}
                 disabled={Boolean(unidadeUsuarioId)}
               />
             )}

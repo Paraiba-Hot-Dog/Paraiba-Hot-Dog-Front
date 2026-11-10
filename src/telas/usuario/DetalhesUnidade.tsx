@@ -17,11 +17,29 @@ const MAPAS_POR_UNIDADE: Record<
   string,
   { mapsUrl: string; mapsEmbedUrl: string }
 > = {
-  'aguas-claras-jequitiba-praca-tangara': {
+  'aguas-claras-jequitiba': {
     mapsUrl:
-      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Avenida+Jequitib%C3%A1/@-15.8390999,-48.0391648,19z/data=!4m6!3m5!1s0x935a3380b07859e3:0xbd4277818efdfa8f!8m2!3d-15.8386522!4d-48.0392587!16s%2Fg%2F11fkch_sqm?entry=ttu&g_ep=EgoyMDI2MDYxMC4wIKXMDSoASAFQAw%3D%3D',
+      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Avenida+Jequitib%C3%A1/@-15.8386522,-48.0392587,19z',
     mapsEmbedUrl:
       'https://www.google.com/maps?q=-15.8386522,-48.0392587&z=19&output=embed',
+  },
+  'aguas-claras-jequitiba-praca-tangara': {
+    mapsUrl:
+      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Avenida+Jequitib%C3%A1/@-15.8386522,-48.0392587,19z',
+    mapsEmbedUrl:
+      'https://www.google.com/maps?q=-15.8386522,-48.0392587&z=19&output=embed',
+  },
+  'aguas-claras-boulevard-norte-rua-ipe-amarelo': {
+    mapsUrl:
+      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Boulevard+Norte/@-15.8399623,-48.0196604,19z',
+    mapsEmbedUrl:
+      'https://www.google.com/maps?q=-15.8399623,-48.0196604&z=19&output=embed',
+  },
+  'aguas-claras-araucarias': {
+    mapsUrl:
+      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Av.+das+Arauc%C3%A1rias/@-15.8400976,-48.0196774,19z',
+    mapsEmbedUrl:
+      'https://www.google.com/maps?q=-15.8400976,-48.0196774&z=19&output=embed',
   },
 }
 
@@ -57,30 +75,12 @@ function BotaoLink({
   )
 }
 
-type UnidadeAraucariasProps = {
+type DetalhesUnidadeProps = {
   slug: string
 }
 
-// TODO: remover mock antes do commit — apenas para inspeção visual local
-const unidadeMock: ReturnType<typeof mapearUnidade> = {
-  nome: "Asa Norte",
-  subtitulo: "Av. W3 Norte",
-  imagem: null,
-  abertura: "18:00",
-  fechamento: "23:00",
-  endereco: "Av. W3 Norte, 100, Asa Norte, Brasília - DF, 70000-000",
-  referencia: "Próximo ao Conic",
-  mapsUrl: "https://www.google.com/maps/search/?api=1&query=Asa+Norte+Brasilia",
-  mapsEmbedUrl: "https://www.google.com/maps?q=-15.7801,-47.9292&output=embed",
-  ifoodUrl: IFOOD_URL,
-  cardapioUrl: "/cardapio",
-}
-
-export default function UnidadeAraucarias({ slug }: UnidadeAraucariasProps) {
-  // TODO: remover mock antes do commit — forçando estado inicial para inspeção visual
-  const [unidade, setUnidade] = useState<ReturnType<typeof mapearUnidade> | null>(
-    unidadeMock,
-  )
+export default function DetalhesUnidade({ slug }: DetalhesUnidadeProps) {
+  const [unidade, setUnidade] = useState<ReturnType<typeof mapearUnidade> | null>(null)
 
   useEffect(() => {
     listarUnidades()
@@ -90,14 +90,12 @@ export default function UnidadeAraucarias({ slug }: UnidadeAraucariasProps) {
         )
 
         if (!unidadeApi) {
-          // TODO: remover mock — mantém mock se API falhar
           return
         }
 
         setUnidade(mapearUnidade(unidadeApi))
       })
       .catch(() => {
-        // TODO: remover mock — mantém mock se API falhar
       })
   }, [slug])
 

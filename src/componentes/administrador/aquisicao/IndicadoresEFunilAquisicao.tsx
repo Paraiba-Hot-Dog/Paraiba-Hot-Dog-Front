@@ -101,7 +101,7 @@ export default function IndicadoresEFunilAquisicao() {
               : 'border-[#ffdb38] bg-[#fff1a6] text-[#604f00]'
           }`}
         >
-          {erro ?? 'Carregando dados de aquisição da API...'}
+          {erro ?? 'Carregando dados de aquisição...'}
         </div>
       )}
 

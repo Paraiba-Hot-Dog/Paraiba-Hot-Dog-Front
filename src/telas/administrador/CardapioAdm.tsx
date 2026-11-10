@@ -1,7 +1,8 @@
 import { ArrowDown, ArrowUp, Edit2, Plus, Trash2, X } from "lucide-react";
 import type {
   CategoriaRead,
-  ProdutoAdicionalRead,
+  GrupoOpcaoRead,
+  OpcaoComplementoRead,
   ProdutoCardapio,
   ProdutoVariacaoRead,
   SecaoCardapio,
@@ -45,8 +46,14 @@ type ProdutoFormData = {
   disponivelTodasUnidades: boolean;
   unidadeIds: number[];
   preco: string;
-  precoCombo: string;
+  permiteCombo: boolean;
+  valorAdicionalComboLanche: string;
+  disponivelNoCombo: boolean;
+  valorAdicionalComboItem: string;
   adicionais: ProdutoFormAdicional[];
+  permitirMaionese: boolean;
+  permitirRemoverIngredientes: boolean;
+  permitirAdicionais: boolean;
 };
 
 type ProdutoFormAdicional = {
@@ -175,10 +182,6 @@ async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-function isPersistedId(id: string) {
-  return /^\d+$/.test(id);
-}
-
 function resolverUrlImagemAdmin(imagemUrl: string | null | undefined) {
   if (!imagemUrl) return null;
   if (/^https?:\/\//i.test(imagemUrl)) return imagemUrl;
@@ -192,6 +195,7 @@ function normalizarProdutoBackend(produto: ProdutoCardapio): ProdutoCardapio {
     unidade_ids: produto.unidade_ids ?? [],
     variacoes: produto.variacoes ?? [],
     adicionais: produto.adicionais ?? [],
+    grupos: produto.grupos ?? [],
     imagem_url: resolverUrlImagemAdmin(produto.imagem_url),
   };
 }
@@ -213,6 +217,14 @@ function criarProdutoMultipartPayload(
     "disponivel_todas_unidades",
     String(form.disponivelTodasUnidades),
   );
+  formData.append(
+    "disponivel_no_combo",
+    String(form.disponivelNoCombo),
+  );
+  formData.append(
+    "valor_adicional_combo",
+    String(Number(form.valorAdicionalComboItem.replace(",", ".") || 0)),
+  );
   formData.append("subcategoria_id", String(form.subcategoriaId));
   if (imagemArquivo) {
     formData.append("imagem", imagemArquivo);
@@ -230,7 +242,8 @@ function criarProdutoMultipartPayload(
 function criarVariacoes(
   produtoId: number,
   preco: string,
-  precoCombo: string,
+  permiteCombo: boolean,
+  valorAdicionalComboLanche: string,
   variacoesAtuais: ProdutoVariacaoRead[] = [],
 ): ProdutoVariacaoRead[] {
   const variacaoNormal = variacoesAtuais.find(
@@ -239,24 +252,28 @@ function criarVariacoes(
   const variacaoCombo = variacoesAtuais.find(
     (variacao) => variacao.tipo === "combo",
   );
+  const precoNormalNum = Number(preco.replace(",", ".") || 0);
+  const adicionalNum = Number(valorAdicionalComboLanche.replace(",", ".") || 0);
+  const precoComboNum = precoNormalNum + adicionalNum;
+
   const variacoes: ProdutoVariacaoRead[] = [
     {
       id: variacaoNormal?.id ?? produtoId * 10,
       produto_id: produtoId,
       nome: "Normal",
       tipo: "normal",
-      preco: Number(preco || 0),
+      preco: precoNormalNum,
       ativo: true,
     },
   ];
 
-  if (precoCombo.trim()) {
+  if (permiteCombo) {
     variacoes.push({
       id: variacaoCombo?.id ?? produtoId * 10 + 1,
       produto_id: produtoId,
       nome: "Combo",
       tipo: "combo",
-      preco: Number(precoCombo || 0),
+      preco: precoComboNum,
       ativo: true,
     });
   }
@@ -264,20 +281,12 @@ function criarVariacoes(
   return variacoes;
 }
 
-function criarAdicionais(
-  produtoId: number,
-  adicionais: ProdutoFormAdicional[],
-): ProdutoAdicionalRead[] {
-  return adicionais
-    .filter((adicional) => adicional.nome.trim())
-    .map((adicional, index) => ({
-      id: isPersistedId(adicional.id)
-        ? Number(adicional.id)
-        : produtoId * 100 + index,
-      produto_id: produtoId,
-      nome: adicional.nome.trim(),
-      preco: Number(adicional.preco.replace(",", ".") || 0),
-    }));
+function normalizarTexto(texto: string) {
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }
 
 function produtoParaForm(
@@ -290,6 +299,24 @@ function produtoParaForm(
   const precoCombo = produto?.variacoes.find(
     (variacao) => variacao.tipo === "combo",
   );
+
+  const temComboVariacao = Boolean(precoCombo && precoCombo.ativo !== false);
+  const valorNormalNum = Number(precoNormal?.preco ?? 0);
+  const valorComboNum = Number(precoCombo?.preco ?? 0);
+  const diferencaCombo =
+    temComboVariacao && valorComboNum >= valorNormalNum && valorNormalNum > 0
+      ? (valorComboNum - valorNormalNum).toFixed(2).replace(".", ",")
+      : "0,00";
+
+  const disponivelNoCombo =
+    produto?.disponivel_no_combo ?? produto?.disponivel_combo ?? false;
+  const valorAdicionalItem =
+    produto?.valor_adicional_combo !== undefined
+      ? Number(produto.valor_adicional_combo).toFixed(2).replace(".", ",")
+      : "0,00";
+
+  const grupos = produto?.grupos ?? [];
+  const temGrupos = grupos.length > 0;
 
   return {
     nome: produto?.nome ?? "",
@@ -304,13 +331,33 @@ function produtoParaForm(
     disponivelTodasUnidades: produto?.disponivel_todas_unidades ?? true,
     unidadeIds: produto?.unidade_ids ?? [],
     preco: precoNormal?.preco.toString() ?? "",
-    precoCombo: precoCombo?.preco.toString() ?? "",
+    permiteCombo: temComboVariacao,
+    valorAdicionalComboLanche: diferencaCombo,
+    disponivelNoCombo: disponivelNoCombo,
+    valorAdicionalComboItem: valorAdicionalItem,
     adicionais:
       produto?.adicionais.map((adicional) => ({
         id: adicional.id.toString(),
         nome: adicional.nome,
         preco: adicional.preco.toString(),
       })) ?? [],
+    permitirMaionese: temGrupos
+      ? grupos.some((g) => normalizarTexto(g.nome).includes("maionese"))
+      : true,
+    permitirRemoverIngredientes: temGrupos
+      ? grupos.some(
+          (g) =>
+            normalizarTexto(g.nome).includes("retirar") ||
+            normalizarTexto(g.nome).includes("remover"),
+        )
+      : true,
+    permitirAdicionais: temGrupos
+      ? grupos.some(
+          (g) =>
+            normalizarTexto(g.nome).includes("adicion") ||
+            normalizarTexto(g.nome).includes("acresc"),
+        )
+      : true,
   };
 }
 
@@ -330,15 +377,20 @@ function produtoFromForm(
       form.pontosFidelidadePorUnidade || 0,
     ),
     disponivel_todas_unidades: form.disponivelTodasUnidades,
+    disponivel_no_combo: form.disponivelNoCombo,
+    disponivel_combo: form.disponivelNoCombo,
+    valor_adicional_combo: Number(form.valorAdicionalComboItem.replace(",", ".") || 0),
     subcategoria_id: form.subcategoriaId,
     unidade_ids: form.disponivelTodasUnidades ? [] : form.unidadeIds,
     variacoes: criarVariacoes(
       id,
       form.preco,
-      form.precoCombo,
+      form.permiteCombo,
+      form.valorAdicionalComboLanche,
       produtoAtual?.variacoes,
     ),
-    adicionais: criarAdicionais(id, form.adicionais),
+    adicionais: produtoAtual?.adicionais ?? [],
+    grupos: produtoAtual?.grupos ?? [],
   };
 }
 
@@ -355,7 +407,10 @@ async function sincronizarVariacoes(
   );
 
   const precoNormal = Number(form.preco.replace(",", ".") || 0);
-  const precoCombo = Number(form.precoCombo.replace(",", ".") || 0);
+  const adicionalCombo = Number(
+    form.valorAdicionalComboLanche.replace(",", ".") || 0,
+  );
+  const precoCombo = precoNormal + adicionalCombo;
 
   if (precoNormal > 0) {
     const payload = {
@@ -387,7 +442,7 @@ async function sincronizarVariacoes(
     }
   }
 
-  if (form.precoCombo.trim() && precoCombo > 0) {
+  if (form.permiteCombo && precoCombo > 0) {
     const payload = {
       produto_id: produtoId,
       nome: "Combo",
@@ -422,56 +477,93 @@ async function sincronizarVariacoes(
   }
 }
 
-async function sincronizarAdicionais(
+async function sincronizarGrupos(
   produtoId: number,
   form: ProdutoFormData,
-  produtoAtual?: ProdutoCardapio,
+  subcategorias?: SubcategoriaRead[],
+  categorias?: CategoriaRead[],
 ) {
-  const adicionaisAtuais = produtoAtual?.adicionais ?? [];
-  const adicionaisForm = form.adicionais.filter(
-    (adicional) =>
-      adicional.nome.trim() && Number(adicional.preco.replace(",", ".") || 0) > 0,
-  );
-  const idsMantidos = new Set(
-    adicionaisForm
-      .filter((adicional) => isPersistedId(adicional.id))
-      .map((adicional) => Number(adicional.id)),
-  );
+  let gruposTodos: GrupoOpcaoRead[] = [];
+  try {
+    gruposTodos = await apiJson<GrupoOpcaoRead[]>("/produtos/grupos/todos");
+  } catch {
+    // Fallback caso não seja possível listar os grupos
+  }
 
-  await Promise.all(
-    adicionaisAtuais
-      .filter((adicional) => !idsMantidos.has(adicional.id))
-      .map((adicional) =>
-        apiJson<void>(`/produtos/adicionais/${adicional.id}`, {
-          method: "DELETE",
-        }),
-      ),
-  );
+  const findGrupoId = (termo: string, fallbackId: number) => {
+    const encontrado = gruposTodos.find((g) =>
+      normalizarTexto(g.nome).includes(termo),
+    );
+    return encontrado ? encontrado.id : fallbackId;
+  };
 
-  for (const adicional of adicionaisForm) {
-    const payload = {
-      produto_id: produtoId,
-      nome: adicional.nome.trim(),
-      preco: Number(adicional.preco.replace(",", ".") || 0),
-    };
+  const subcat = subcategorias?.find((s) => s.id === form.subcategoriaId);
+  const cat = categorias?.find((c) => c.id === subcat?.categoria_id);
+  const texto = normalizarTexto(`${cat?.nome ?? ""} ${subcat?.nome ?? ""}`);
+  const ehSmash = texto.includes("smash");
+  const ehLanche = ehSmash || texto.includes("hot") || texto.includes("dog");
 
-    if (isPersistedId(adicional.id)) {
-      await apiJson<ProdutoAdicionalRead>(
-        `/produtos/adicionais/${adicional.id}`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            nome: payload.nome,
-            preco: payload.preco,
-          }),
-        },
-      );
+  if (!ehLanche) {
+    return;
+  }
+
+  const grupoIds: number[] = [];
+  if (form.permitirMaionese) {
+    grupoIds.push(findGrupoId("maionese", 1));
+  }
+  if (form.permitirRemoverIngredientes) {
+    if (ehSmash) {
+      const idRemoverSmash =
+        gruposTodos.find(
+          (g) =>
+            normalizarTexto(g.nome).includes("smash") &&
+            (normalizarTexto(g.nome).includes("retirar") ||
+              normalizarTexto(g.nome).includes("remover")),
+        )?.id ?? 5;
+      grupoIds.push(idRemoverSmash);
     } else {
-      await apiJson<ProdutoAdicionalRead>("/produtos/adicionais", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      const idRemoverHotdog =
+        gruposTodos.find(
+          (g) =>
+            (normalizarTexto(g.nome).includes("hotdog") ||
+              normalizarTexto(g.nome).includes("hot dog")) &&
+            (normalizarTexto(g.nome).includes("retirar") ||
+              normalizarTexto(g.nome).includes("remover")),
+        )?.id ?? 2;
+      grupoIds.push(idRemoverHotdog);
     }
+  }
+
+  if (form.permitirAdicionais) {
+    if (ehSmash) {
+      const idSmash =
+        gruposTodos.find(
+          (g) =>
+            normalizarTexto(g.nome).includes("smash") &&
+            (normalizarTexto(g.nome).includes("adicion") ||
+              normalizarTexto(g.nome).includes("acresc")),
+        )?.id ?? 3;
+      grupoIds.push(idSmash);
+    } else {
+      const idHotdog =
+        gruposTodos.find(
+          (g) =>
+            (normalizarTexto(g.nome).includes("hotdog") ||
+              normalizarTexto(g.nome).includes("hot dog")) &&
+            (normalizarTexto(g.nome).includes("adicion") ||
+              normalizarTexto(g.nome).includes("acresc")),
+        )?.id ?? 4;
+      grupoIds.push(idHotdog);
+    }
+  }
+
+  try {
+    await apiJson(`/produtos/${produtoId}/grupos`, {
+      method: "POST",
+      body: JSON.stringify({ grupo_ids: grupoIds }),
+    });
+  } catch {
+    // Falha silenciosa ou log se o backend ainda não tiver aplicado a rota
   }
 }
 
@@ -593,7 +685,7 @@ function CardProdutoAdm({
           <img
             src={imagem}
             alt={produto.nome}
-            className="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105 group-hover:brightness-105"
+            className="h-full w-full object-cover object-[50%_62%] transition-transform duration-700 group-hover:scale-105 group-hover:brightness-105"
             loading="lazy"
           />
         ) : (
@@ -690,12 +782,12 @@ function DetalheProdutoAdm({
               ))}
             </div>
 
-            <div className="mt-6">
-              <h4 className="font-barlow-condensed text-2xl font-black uppercase text-amarelo">
-                Adicionais
-              </h4>
+            {produto.adicionais && produto.adicionais.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-barlow-condensed text-2xl font-black uppercase text-amarelo">
+                  Adicionais
+                </h4>
 
-              {produto.adicionais.length > 0 ? (
                 <ul className="mt-3 grid gap-2">
                   {produto.adicionais.map((adicional) => (
                     <li
@@ -711,12 +803,8 @@ function DetalheProdutoAdm({
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <p className="mt-3 font-barlow text-sm text-branco/65">
-                  Nenhum adicional cadastrado para este item.
-                </p>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="mt-6 grid grid-cols-2 gap-3">
               <button
@@ -808,41 +896,166 @@ function ProdutoFormModal({
   );
   const [salvando, setSalvando] = useState(false);
 
+  const subcategoriaSelecionada = subcategorias.find(
+    (item) => item.id === form.subcategoriaId,
+  );
+  const categoriaSelecionada = categorias.find(
+    (item) => item.id === subcategoriaSelecionada?.categoria_id,
+  );
+  const textoCategoria = normalizarTexto(
+    `${categoriaSelecionada?.nome ?? ""} ${subcategoriaSelecionada?.nome ?? ""}`,
+  );
+  const ehBebidaOuAcompanhamento =
+    textoCategoria.includes("bebida") ||
+    textoCategoria.includes("acompanha");
+
   const updateField = (
     field: keyof ProdutoFormData,
-    value: string | number,
+    value: string | number | boolean,
   ) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  const adicionarAdicional = () => {
-    setForm((current) => ({
-      ...current,
-      adicionais: [
-        ...current.adicionais,
-        { id: crypto.randomUUID(), nome: "", preco: "" },
-      ],
-    }));
+  const [gruposLocais, setGruposLocais] = useState<GrupoOpcaoRead[]>(
+    produto?.grupos ?? [],
+  );
+  const [novoSabor, setNovoSabor] = useState("");
+  const [salvandoSabor, setSalvandoSabor] = useState(false);
+  const [erroSabor, setErroSabor] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!produto?.id) return;
+    let ativo = true;
+    apiJson<ProdutoCardapio>(`/produtos/${produto.id}`)
+      .then((p) => {
+        if (ativo && p.grupos) {
+          setGruposLocais(p.grupos);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, [produto?.id]);
+
+  const gruposSabores = useMemo(() => {
+    return gruposLocais.filter((g) => {
+      const n = normalizarTexto(g.nome);
+      return n.includes("sabor") || n.includes("sabores");
+    });
+  }, [gruposLocais]);
+
+  const atualizarDescricaoSabores = (opcoes: OpcaoComplementoRead[]) => {
+    if (opcoes.length === 0) return;
+    const nomes = opcoes.map((o) => o.nome);
+    let textoLista = "";
+    if (nomes.length === 1) {
+      textoLista = nomes[0];
+    } else if (nomes.length === 2) {
+      textoLista = `${nomes[0]} e ${nomes[1]}`;
+    } else {
+      textoLista = `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
+    }
+    setForm((current) => {
+      if (!current.descricao.trim() || current.descricao.trim().startsWith("Sabores:")) {
+        return {
+          ...current,
+          descricao: `Sabores: ${textoLista}.`,
+        };
+      }
+      return current;
+    });
   };
 
-  const atualizarAdicional = (
-    id: string,
-    field: keyof Omit<ProdutoFormAdicional, "id">,
-    value: string,
-  ) => {
-    setForm((current) => ({
-      ...current,
-      adicionais: current.adicionais.map((adicional) =>
-        adicional.id === id ? { ...adicional, [field]: value } : adicional,
-      ),
-    }));
+  const adicionarSabor = async (grupoId: number) => {
+    const nomeTrim = novoSabor.trim();
+    if (!nomeTrim) return;
+    setSalvandoSabor(true);
+    setErroSabor(null);
+    try {
+      const novaOpcao = await apiJson<OpcaoComplementoRead>(
+        `/produtos/grupos/${grupoId}/opcoes`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            nome: nomeTrim,
+            preco: 0,
+            ativo: true,
+          }),
+        },
+      );
+      setGruposLocais((prev) => {
+        const novos = prev.map((g) =>
+          g.id === grupoId
+            ? { ...g, opcoes: [...(g.opcoes ?? []), novaOpcao] }
+            : g,
+        );
+        const grupoAtualizado = novos.find((g) => g.id === grupoId);
+        if (grupoAtualizado?.opcoes) {
+          atualizarDescricaoSabores(grupoAtualizado.opcoes);
+        }
+        return novos;
+      });
+      setNovoSabor("");
+    } catch (err) {
+      setErroSabor(err instanceof Error ? err.message : "Erro ao adicionar sabor");
+    } finally {
+      setSalvandoSabor(false);
+    }
   };
 
-  const removerAdicional = (id: string) => {
-    setForm((current) => ({
-      ...current,
-      adicionais: current.adicionais.filter((adicional) => adicional.id !== id),
-    }));
+  const removerSabor = async (grupoId: number, opcaoId: number) => {
+    setSalvandoSabor(true);
+    setErroSabor(null);
+    try {
+      await apiJson<void>(`/produtos/grupos/opcoes/${opcaoId}`, {
+        method: "DELETE",
+      });
+      setGruposLocais((prev) => {
+        const novos = prev.map((g) =>
+          g.id === grupoId
+            ? { ...g, opcoes: (g.opcoes ?? []).filter((o) => o.id !== opcaoId) }
+            : g,
+        );
+        const grupoAtualizado = novos.find((g) => g.id === grupoId);
+        if (grupoAtualizado?.opcoes) {
+          atualizarDescricaoSabores(grupoAtualizado.opcoes);
+        }
+        return novos;
+      });
+    } catch (err) {
+      setErroSabor(err instanceof Error ? err.message : "Erro ao remover sabor");
+    } finally {
+      setSalvandoSabor(false);
+    }
+  };
+
+  const criarGrupoSabores = async () => {
+    if (!produto?.id) return;
+    setSalvandoSabor(true);
+    setErroSabor(null);
+    try {
+      const novoGrupo = await apiJson<GrupoOpcaoRead>("/produtos/grupos/", {
+        method: "POST",
+        body: JSON.stringify({
+          nome: `Sabores de ${form.nome.trim() || "Bebida"}`,
+          obrigatorio: true,
+          minimo: 1,
+          maximo: 1,
+          ativo: true,
+        }),
+      });
+      const idsExistentes = gruposLocais.map((g) => g.id);
+      await apiJson(`/produtos/${produto.id}/grupos`, {
+        method: "POST",
+        body: JSON.stringify({ grupo_ids: [...idsExistentes, novoGrupo.id] }),
+      });
+      setGruposLocais((prev) => [...prev, { ...novoGrupo, opcoes: [] }]);
+    } catch (err) {
+      setErroSabor(err instanceof Error ? err.message : "Erro ao habilitar grupo de sabores");
+    } finally {
+      setSalvandoSabor(false);
+    }
   };
 
   const alternarUnidade = (unidadeId: number) => {
@@ -893,7 +1106,14 @@ function ProdutoFormModal({
   const salvar = async () => {
     setSalvando(true);
     try {
-      await onSave(form);
+      await onSave({
+        ...form,
+        permiteCombo: ehBebidaOuAcompanhamento ? false : form.permiteCombo,
+        disponivelNoCombo: ehBebidaOuAcompanhamento ? form.disponivelNoCombo : false,
+        permitirMaionese: ehBebidaOuAcompanhamento ? false : form.permitirMaionese,
+        permitirRemoverIngredientes: ehBebidaOuAcompanhamento ? false : form.permitirRemoverIngredientes,
+        permitirAdicionais: ehBebidaOuAcompanhamento ? false : form.permitirAdicionais,
+      });
     } finally {
       setSalvando(false);
     }
@@ -1095,105 +1315,227 @@ function ProdutoFormModal({
             )}
           </div>
 
-          <div className="grid gap-4 min-[640px]:grid-cols-2">
+          {/* Preço normal */}
+          <div>
             <label>
               <span className={modalLabelClass}>Preço normal</span>
               <input
                 value={form.preco}
                 onChange={(event) => updateField("preco", event.target.value)}
                 className={modalInputClass}
-              />
-            </label>
-            <label>
-              <span className={modalLabelClass}>Preço combo</span>
-              <input
-                value={form.precoCombo}
-                onChange={(event) =>
-                  updateField("precoCombo", event.target.value)
-                }
-                className={modalInputClass}
+                placeholder="0,00"
               />
             </label>
           </div>
 
-          <div className="rounded-[5px] border border-[#DADEE3] bg-[rgba(244,246,248,0.4)] p-3">
-            <div className="flex items-center justify-between gap-3">
-              <span className={modalLabelClass}>
-                Adicionais
-              </span>
-              <button
-                type="button"
-                onClick={adicionarAdicional}
-                className="inline-flex items-center gap-2 rounded-[6px] bg-[#0A0A0A] px-3 py-1.5 font-barlow-condensed text-base font-semibold uppercase tracking-wide text-white transition-colors hover:bg-[#2C2C2C]"
-              >
-                <Plus aria-hidden className="h-4 w-4" strokeWidth={3} />
-                Adicionar
-              </button>
+          {/* Opção 1: Venda como Combo (Lanches e Sanduíches) */}
+          {!ehBebidaOuAcompanhamento && (
+            <div className="rounded-[5px] border border-[#DADEE3] bg-[rgba(244,246,248,0.4)] p-3.5">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.permiteCombo}
+                  onChange={(event) =>
+                    updateField("permiteCombo", event.target.checked)
+                  }
+                  className="h-4 w-4 accent-amarelo"
+                />
+                <span className="font-barlow text-sm font-bold text-[#121212]">
+                  Permitir venda como combo
+                </span>
+              </label>
+
+              {form.permiteCombo && (
+                <div className="mt-3.5 border-t border-[#DADEE3] pt-3">
+                  <label>
+                    <span className="text-xs font-semibold uppercase text-[#666666]">
+                      Acréscimo do combo: R$
+                    </span>
+                    <input
+                      value={form.valorAdicionalComboLanche}
+                      onChange={(event) =>
+                        updateField("valorAdicionalComboLanche", event.target.value)
+                      }
+                      placeholder="0,00"
+                      className={`mt-1 ${modalInputClass}`}
+                    />
+                  </label>
+                  {Number(form.preco.replace(",", ".") || 0) > 0 && (
+                    <p className="mt-1 text-xs font-semibold text-emerald-700">
+                      Preço total do combo: {formatarPreco(
+                        Number(form.preco.replace(",", ".") || 0) +
+                        Number(form.valorAdicionalComboLanche.replace(",", ".") || 0)
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
+          )}
 
-            {form.adicionais.length > 0 ? (
-              <div className="mt-3 grid gap-3">
-                {form.adicionais.map((adicional) => (
-                  <div
-                    key={adicional.id}
-                    className="grid gap-2 rounded-[5px] border border-[#DADEE3] bg-white p-3 min-[640px]:grid-cols-[minmax(0,1fr)_8rem_2.5rem] min-[640px]:items-end"
-                  >
-                    <label>
-                      <span className="text-xs font-semibold uppercase text-[#666666]">
-                        Nome
+          {/* Opção 2: Disponível dentro do Combo (Bebidas e Acompanhamentos) */}
+          {ehBebidaOuAcompanhamento && (
+            <div className="rounded-[5px] border border-[#DADEE3] bg-[rgba(244,246,248,0.4)] p-3.5">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.disponivelNoCombo}
+                  onChange={(event) =>
+                    updateField("disponivelNoCombo", event.target.checked)
+                  }
+                  className="h-4 w-4 accent-amarelo"
+                />
+                <span className="font-barlow text-sm font-bold text-[#121212]">
+                  Disponível para seleção em combos
+                </span>
+              </label>
+
+              {form.disponivelNoCombo && (
+                <div className="mt-3.5 border-t border-[#DADEE3] pt-3">
+                  <label>
+                    <span className="text-xs font-semibold uppercase text-[#666666]">
+                      Acréscimo no combo: R$
+                    </span>
+                    <input
+                      value={form.valorAdicionalComboItem}
+                      onChange={(event) =>
+                        updateField("valorAdicionalComboItem", event.target.value)
+                      }
+                      placeholder="0,00"
+                      className={`mt-1 ${modalInputClass}`}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!ehBebidaOuAcompanhamento && (
+            <div className="rounded-[5px] border border-[#DADEE3] bg-[rgba(244,246,248,0.4)] p-3.5">
+              <span className={modalLabelClass}>Personalização no atendimento</span>
+
+              <div className="mt-3 grid gap-2.5">
+                <label className="flex items-center gap-3 rounded-[5px] border border-[#DADEE3] bg-white p-3 cursor-pointer hover:bg-slate-50 transition">
+                  <input
+                    type="checkbox"
+                    checked={form.permitirMaionese}
+                    onChange={(event) =>
+                      updateField("permitirMaionese", event.target.checked)
+                    }
+                    className="h-4 w-4 accent-amarelo"
+                  />
+                  <span className="font-barlow text-sm font-bold text-[#121212]">
+                    Seleção de maioneses
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-3 rounded-[5px] border border-[#DADEE3] bg-white p-3 cursor-pointer hover:bg-slate-50 transition">
+                  <input
+                    type="checkbox"
+                    checked={form.permitirRemoverIngredientes}
+                    onChange={(event) =>
+                      updateField("permitirRemoverIngredientes", event.target.checked)
+                    }
+                    className="h-4 w-4 accent-amarelo"
+                  />
+                  <span className="font-barlow text-sm font-bold text-[#121212]">
+                    Remoção de ingredientes
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-3 rounded-[5px] border border-[#DADEE3] bg-white p-3 cursor-pointer hover:bg-slate-50 transition">
+                  <input
+                    type="checkbox"
+                    checked={form.permitirAdicionais}
+                    onChange={(event) =>
+                      updateField("permitirAdicionais", event.target.checked)
+                    }
+                    className="h-4 w-4 accent-amarelo"
+                  />
+                  <span className="font-barlow text-sm font-bold text-[#121212]">
+                    Adicionais da categoria
+                  </span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Sabores */}
+          {gruposSabores.length > 0 && (
+            <div className="rounded-[5px] border border-[#DADEE3] bg-[rgba(244,246,248,0.4)] p-4">
+              <span className={modalLabelClass}>Sabores</span>
+
+              {erroSabor && (
+                <p className="mt-2 text-xs font-bold text-red-600">{erroSabor}</p>
+              )}
+
+              {gruposSabores.map((grupo) => (
+                <div key={grupo.id} className="mt-2.5">
+                  <div className="flex flex-wrap gap-2">
+                    {(grupo.opcoes ?? []).map((opcao) => (
+                      <span
+                        key={opcao.id}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 font-barlow text-sm font-semibold text-[#121212] shadow-sm"
+                      >
+                        {opcao.nome}
+                        <button
+                          type="button"
+                          onClick={() => removerSabor(grupo.id, opcao.id)}
+                          disabled={salvandoSabor}
+                          title={`Excluir ${opcao.nome}`}
+                          className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-gray-400 hover:bg-red-50 hover:text-red-600 transition"
+                        >
+                          <X className="h-3 w-3" strokeWidth={3} />
+                        </button>
                       </span>
-                      <input
-                        value={adicional.nome}
-                        onChange={(event) =>
-                          atualizarAdicional(
-                            adicional.id,
-                            "nome",
-                            event.target.value,
-                          )
-                        }
-                        className={modalInputClass}
-                      />
-                    </label>
+                    ))}
+                    {(!grupo.opcoes || grupo.opcoes.length === 0) && (
+                      <p className="text-xs text-gray-500">Nenhum sabor cadastrado.</p>
+                    )}
+                  </div>
 
-                    <label>
-                      <span className="text-xs font-semibold uppercase text-[#666666]">
-                        Preço
-                      </span>
-                      <input
-                        value={adicional.preco}
-                        onChange={(event) =>
-                          atualizarAdicional(
-                            adicional.id,
-                            "preco",
-                            event.target.value,
-                          )
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      type="text"
+                      value={novoSabor}
+                      onChange={(e) => setNovoSabor(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          adicionarSabor(grupo.id);
                         }
-                        className={modalInputClass}
-                      />
-                    </label>
-
+                      }}
+                      placeholder="Novo sabor..."
+                      className={`${modalInputClass} mt-0 flex-1`}
+                    />
                     <button
                       type="button"
-                      onClick={() => removerAdicional(adicional.id)}
-                      className="flex h-10 items-center justify-center gap-2 rounded-[6px] bg-[#D92B2B] px-3 font-barlow-condensed text-base font-semibold uppercase tracking-wide text-white transition-colors hover:bg-red-700 min-[640px]:w-10 min-[640px]:px-0"
-                      aria-label={`Excluir adicional ${adicional.nome || ""}`}
+                      onClick={() => adicionarSabor(grupo.id)}
+                      disabled={salvandoSabor || !novoSabor.trim()}
+                      className="flex items-center gap-1.5 rounded-[5px] bg-[#0A0A0A] px-4 py-2 font-barlow-condensed text-sm font-semibold uppercase text-white hover:bg-[#2C2C2C] disabled:opacity-50 transition"
                     >
-                      <Trash2
-                        aria-hidden
-                        className="h-4 w-4"
-                        strokeWidth={2.5}
-                      />
-                      <span className="min-[640px]:sr-only">Excluir</span>
+                      <Plus className="h-4 w-4" />
+                      Adicionar
                     </button>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-3 font-barlow text-sm text-[#666666]">
-                Nenhum adicional cadastrado.
-              </p>
-            )}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {produto && ehBebidaOuAcompanhamento && gruposSabores.length === 0 && (
+            <div className="rounded-[5px] border border-dashed border-[#DADEE3] bg-white p-3 text-center">
+              <button
+                type="button"
+                onClick={criarGrupoSabores}
+                disabled={salvandoSabor}
+                className="inline-flex items-center gap-1 font-barlow-condensed text-sm font-bold uppercase text-black hover:text-gray-700"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Configurar grupo de sabores
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-[#DADEE3] pt-4">
@@ -1575,13 +1917,19 @@ function GerenciadorTaxonomia({
 
 function ConfirmarExclusao({
   produto,
+  unidade,
   onCancel,
-  onConfirm,
+  onConfirmExcluirGeral,
+  onRemoverDaUnidade,
 }: {
   produto: ProdutoCardapio;
+  unidade?: UnidadeRead | null;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirmExcluirGeral: () => void;
+  onRemoverDaUnidade?: () => void;
 }) {
+  const [executando, setExecutando] = useState(false);
+
   return (
     <div
       className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
@@ -1590,12 +1938,12 @@ function ConfirmarExclusao({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-[420px] overflow-hidden rounded-[12px] bg-white text-[#0A0A0A] shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
+        className="w-full max-w-[440px] overflow-hidden rounded-[12px] bg-white text-[#0A0A0A] shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 bg-[#0A0A0A] px-6 py-5 text-white">
-          <h3 className="min-w-0 flex-1 text-center font-barlow-condensed text-[28px] font-semibold uppercase leading-none tracking-[1px]">
-            Excluir item
+          <h3 className="min-w-0 flex-1 text-center font-barlow-condensed text-[26px] font-semibold uppercase leading-none tracking-[1px]">
+            {unidade ? "Remover da unidade" : "Excluir produto"}
           </h3>
           <button
             type="button"
@@ -1606,28 +1954,74 @@ function ConfirmarExclusao({
             <X aria-hidden className="h-5 w-5" strokeWidth={3} />
           </button>
         </div>
-        <div className="px-6 py-6">
+        <div className="px-6 py-5">
           <p className="font-barlow text-base font-bold text-[#0A0A0A]">
-            Confirmar exclusão:
+            Produto: <span className="text-amber-700">{produto.nome}</span>
           </p>
-          <p className="mt-2 font-barlow text-sm text-[#666666]">
-            Remover "{produto.nome}" do cardápio?
-          </p>
+          {unidade ? (
+            <div className="mt-3 space-y-2">
+              <p className="font-barlow text-xs text-[#666666] leading-relaxed">
+                Você está gerenciando o cardápio da unidade <strong>{unidade.nome}</strong>. Como deseja prosseguir?
+              </p>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900 leading-snug">
+                💡 <strong>Remover apenas desta unidade</strong> tira o item de <em>{unidade.nome}</em>, mantendo-o ativo no restante da rede.
+              </div>
+            </div>
+          ) : (
+            <p className="mt-2 font-barlow text-sm text-[#666666]">
+              Tem certeza que deseja excluir <strong>"{produto.nome}"</strong> definitivamente de todas as unidades? Esta ação remove o item do banco de dados.
+            </p>
+          )}
         </div>
-        <div className="grid grid-cols-1 gap-3 px-6 pb-6 min-[420px]:grid-cols-2">
+
+        <div className="flex flex-col gap-2.5 px-6 pb-6">
+          {unidade && onRemoverDaUnidade && (
+            <button
+              type="button"
+              disabled={executando}
+              onClick={async () => {
+                setExecutando(true);
+                try {
+                  await onRemoverDaUnidade();
+                } finally {
+                  setExecutando(false);
+                }
+              }}
+              className="flex w-full items-center justify-center rounded-[6px] bg-amarelo py-3 font-barlow-condensed text-lg font-bold uppercase tracking-wide text-preto-v1 transition hover:brightness-95 disabled:opacity-50 shadow-xs"
+            >
+              {executando ? "Processando..." : `Remover apenas de ${unidade.nome}`}
+            </button>
+          )}
           <button
             type="button"
-            onClick={onCancel}
-            className={modalSecondaryButtonClass}
+            disabled={executando}
+            onClick={async () => {
+              setExecutando(true);
+              try {
+                await onConfirmExcluirGeral();
+              } finally {
+                setExecutando(false);
+              }
+            }}
+            className={
+              unidade
+                ? "flex w-full items-center justify-center rounded-[6px] border border-red-300 py-2.5 font-barlow-condensed text-sm font-bold uppercase tracking-wide text-red-600 hover:bg-red-50 disabled:opacity-50 transition"
+                : modalDangerButtonClass
+            }
           >
-            Voltar
+            {executando
+              ? "Excluindo..."
+              : unidade
+              ? "Excluir permanentemente do sistema"
+              : "Excluir"}
           </button>
           <button
             type="button"
-            onClick={onConfirm}
-            className={modalDangerButtonClass}
+            onClick={onCancel}
+            disabled={executando}
+            className={modalSecondaryButtonClass}
           >
-            Excluir
+            Voltar
           </button>
         </div>
       </div>
@@ -1916,6 +2310,8 @@ export default function CardapioAdm() {
         form.pontosFidelidadePorUnidade || 0,
       ),
       disponivel_todas_unidades: form.disponivelTodasUnidades,
+      disponivel_no_combo: form.disponivelNoCombo,
+      valor_adicional_combo: Number(form.valorAdicionalComboItem.replace(",", ".") || 0),
       subcategoria_id: form.subcategoriaId,
       unidade_ids: form.disponivelTodasUnidades ? [] : form.unidadeIds,
     };
@@ -1938,7 +2334,7 @@ export default function CardapioAdm() {
 
       idPersistido = produtoSalvo.id;
       await sincronizarVariacoes(idPersistido, formFinal, produto);
-      await sincronizarAdicionais(idPersistido, formFinal, produto);
+      await sincronizarGrupos(idPersistido, formFinal, subcategorias, categorias);
     } catch (error) {
       setToast(
         error instanceof Error
@@ -2003,6 +2399,47 @@ export default function CardapioAdm() {
       current?.id === produtoExcluindo.id ? null : current,
     );
     setProdutoExcluindo(null);
+  };
+
+  const removerDaUnidadeAtual = async () => {
+    if (!produtoExcluindo || !unidadeSelecionada) return;
+
+    try {
+      const unidadeIdNum = Number(unidadeSelecionada.id);
+      let novasUnidades: number[] = [];
+
+      if (produtoExcluindo.disponivel_todas_unidades) {
+        novasUnidades = unidades
+          .map((u) => Number(u.id))
+          .filter((id) => id !== unidadeIdNum);
+      } else {
+        novasUnidades = (produtoExcluindo.unidade_ids || [])
+          .map((id) => Number(id))
+          .filter((id) => id !== unidadeIdNum);
+      }
+
+      await apiJson(`/produtos/${produtoExcluindo.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          disponivel_todas_unidades: false,
+          unidade_ids: novasUnidades,
+        }),
+      });
+
+      setToast(`Produto removido de ${unidadeSelecionada.nome}.`);
+      removerProdutoLocal(produtoExcluindo.id);
+      setProdutoSelecionado((current) =>
+        current?.id === produtoExcluindo.id ? null : current,
+      );
+      setProdutoExcluindo(null);
+      await carregarDados();
+    } catch (error) {
+      setToast(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível desvincular o produto da unidade.",
+      );
+    }
   };
 
   const salvarCategoria = async (
@@ -2288,8 +2725,10 @@ export default function CardapioAdm() {
       {produtoExcluindo && (
         <ConfirmarExclusao
           produto={produtoExcluindo}
+          unidade={unidadeSelecionada}
           onCancel={() => setProdutoExcluindo(null)}
-          onConfirm={confirmarExclusao}
+          onConfirmExcluirGeral={confirmarExclusao}
+          onRemoverDaUnidade={unidadeSelecionada ? removerDaUnidadeAtual : undefined}
         />
       )}
 

@@ -44,6 +44,20 @@ type NavbarProps = {
   variant?: 'light' | 'dark'
 }
 
+function LinhaDivisor({ isDark, className = '' }: { isDark: boolean; className?: string }) {
+  const linhaGradienteClassName = isDark
+    ? 'h-px w-full shrink-0 bg-[linear-gradient(to_right,transparent_0%,rgba(255,255,255,0.28)_4%,rgba(255,255,255,0.28)_96%,transparent_100%)]'
+    : 'h-px w-full shrink-0 bg-[linear-gradient(to_right,transparent_0%,rgba(26,26,26,0.12)_4%,rgba(26,26,26,0.12)_96%,transparent_100%)]'
+
+  return (
+    <div
+      role="separator"
+      aria-hidden
+      className={`${linhaGradienteClassName} ${className}`.trim()}
+    />
+  )
+}
+
 export default function Navbar({ variant = 'light' }: NavbarProps) {
   const { isAuthenticated } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
@@ -59,20 +73,6 @@ export default function Navbar({ variant = 'light' }: NavbarProps) {
   const mobileMenuClassName = isDark
     ? 'bg-preto-v1 px-6 py-5'
     : 'bg-branco px-6 py-5'
-  const linhaGradienteClassName = isDark
-    ? 'h-px w-full shrink-0 bg-[linear-gradient(to_right,transparent_0%,rgba(255,255,255,0.28)_4%,rgba(255,255,255,0.28)_96%,transparent_100%)]'
-    : 'h-px w-full shrink-0 bg-[linear-gradient(to_right,transparent_0%,rgba(26,26,26,0.12)_4%,rgba(26,26,26,0.12)_96%,transparent_100%)]'
-
-  function LinhaDivisor({ className = '' }: { className?: string }) {
-    return (
-      <div
-        role="separator"
-        aria-hidden
-        className={`${linhaGradienteClassName} ${className}`.trim()}
-      />
-    )
-  }
-
   const mobileLinks = isAuthenticated
     ? [...navLinks, { label: 'Acesso restrito', href: '/admin' }]
     : navLinks
@@ -246,11 +246,11 @@ export default function Navbar({ variant = 'light' }: NavbarProps) {
           className={mobileMenuClassName}
           aria-label="Navegação principal"
         >
-          <LinhaDivisor />
+          <LinhaDivisor isDark={isDark} />
           <ul className="flex flex-col">
             {mobileLinks.map(({ label, href }, index) => (
               <Fragment key={href}>
-                {index > 0 ? <LinhaDivisor className="my-3" /> : null}
+                {index > 0 ? <LinhaDivisor isDark={isDark} className="my-3" /> : null}
                 <li className="py-3">
                   <a
                     href={href}
