@@ -13,36 +13,6 @@ import {
 const IFOOD_URL =
   'https://www.ifood.com.br/delivery/brasilia-df/paraiba-hot-dog-sul-aguas-claras/6b414c09-98ff-427f-9c06-1b00ad1438fe'
 
-const MAPAS_POR_UNIDADE: Record<
-  string,
-  { mapsUrl: string; mapsEmbedUrl: string }
-> = {
-  'aguas-claras-jequitiba': {
-    mapsUrl:
-      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Avenida+Jequitib%C3%A1/@-15.8386522,-48.0392587,19z',
-    mapsEmbedUrl:
-      'https://www.google.com/maps?q=-15.8386522,-48.0392587&z=19&output=embed',
-  },
-  'aguas-claras-jequitiba-praca-tangara': {
-    mapsUrl:
-      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Avenida+Jequitib%C3%A1/@-15.8386522,-48.0392587,19z',
-    mapsEmbedUrl:
-      'https://www.google.com/maps?q=-15.8386522,-48.0392587&z=19&output=embed',
-  },
-  'aguas-claras-boulevard-norte-rua-ipe-amarelo': {
-    mapsUrl:
-      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Boulevard+Norte/@-15.8399623,-48.0196604,19z',
-    mapsEmbedUrl:
-      'https://www.google.com/maps?q=-15.8399623,-48.0196604&z=19&output=embed',
-  },
-  'aguas-claras-araucarias': {
-    mapsUrl:
-      'https://www.google.com/maps/place/Para%C3%ADba+Hot+Dog+-+Av.+das+Arauc%C3%A1rias/@-15.8400976,-48.0196774,19z',
-    mapsEmbedUrl:
-      'https://www.google.com/maps?q=-15.8400976,-48.0196774&z=19&output=embed',
-  },
-}
-
 function isAbertoAgora(abertura: string, fechamento: string) {
   const agora = new Date()
   const minutosAtuais = agora.getHours() * 60 + agora.getMinutes()
@@ -230,16 +200,10 @@ function mapearUnidade(unidade: Unidade) {
     .filter(Boolean)
     .join(', ')
   const localizacaoMapa = `Paraíba Hot Dog, ${enderecoCompleto}`
-  const mapaCadastrado = MAPAS_POR_UNIDADE[criarSlugUnidade(unidade)]
   const mapsUrl =
-    unidade.mapa_url ??
-    mapaCadastrado?.mapsUrl ??
+    unidade.mapa_url ||
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(localizacaoMapa)}`
-  const mapsEmbedUrl =
-    unidade.mapa_url
-      ? resolverUrlMapaEmbed(unidade.mapa_url, localizacaoMapa)
-      : mapaCadastrado?.mapsEmbedUrl ??
-        resolverUrlMapaEmbed(null, localizacaoMapa)
+  const mapsEmbedUrl = resolverUrlMapaEmbed(unidade.mapa_url, localizacaoMapa)
 
   return {
     nome: endereco.bairro,
