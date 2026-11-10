@@ -74,6 +74,7 @@ export type ItemPedidoPayload = {
   quantidade: number
   observacao: string | null
   adicional_ids: number[]
+  produto_nome?: string | null
 }
 
 export async function criarPedidoApi(data: {

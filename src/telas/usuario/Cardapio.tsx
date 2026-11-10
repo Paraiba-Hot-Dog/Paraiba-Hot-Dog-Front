@@ -19,6 +19,7 @@ const LINK_IFOOD =
 const TAMANHOS = [
   { sufixo: /\s+duplo$/i, rotulo: "Duplo", ordem: 1 },
   { sufixo: /\s+triplo$/i, rotulo: "Triplo", ordem: 2 },
+  { sufixo: /\s+qu[aá]druplo$/i, rotulo: "Quádruplo", ordem: 3 },
 ];
 
 type OpcaoTamanho = {
@@ -521,12 +522,12 @@ function DetalheProduto({
               })}
             </div>
 
-            <div>
-              <h4 className="font-barlow-condensed text-2xl font-extrabold uppercase text-amarelo">
-                Adicionais
-              </h4>
+            {produto.adicionais && produto.adicionais.length > 0 && (
+              <div>
+                <h4 className="font-barlow-condensed text-2xl font-extrabold uppercase text-amarelo">
+                  Adicionais
+                </h4>
 
-              {produto.adicionais.length > 0 ? (
                 <ul className="mt-2.5 grid gap-1.5">
                   {produto.adicionais.map((adicional) => (
                     <li
@@ -542,12 +543,8 @@ function DetalheProduto({
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <p className="mt-2.5 font-barlow text-sm text-branco/65">
-                  Nenhum adicional cadastrado para este item.
-                </p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 

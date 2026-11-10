@@ -27,6 +27,24 @@ export type ProdutoAdicionalRead = {
   preco: string | number
 }
 
+export type OpcaoComplementoRead = {
+  id: number
+  grupo_id: number
+  nome: string
+  preco: string | number
+  ativo: boolean
+}
+
+export type GrupoOpcaoRead = {
+  id: number
+  nome: string
+  obrigatorio: boolean
+  minimo: number
+  maximo: number | null
+  ativo: boolean
+  opcoes: OpcaoComplementoRead[]
+}
+
 export type ProdutoRead = {
   id: number
   nome: string
@@ -39,6 +57,10 @@ export type ProdutoRead = {
   unidade_ids: number[]
   variacoes: ProdutoVariacaoRead[]
   adicionais: ProdutoAdicionalRead[]
+  grupos?: GrupoOpcaoRead[]
+  disponivel_no_combo?: boolean
+  disponivel_combo?: boolean
+  valor_adicional_combo?: number
 }
 
 export type UnidadeRead = {

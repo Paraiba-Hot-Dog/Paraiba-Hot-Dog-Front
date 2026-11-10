@@ -17,8 +17,12 @@ type PedidoCozinha = {
   key: string; id: number; origem: 'proprio' | 'ifood'; nome: string; lote: number; createdAt: string
   status: StatusCozinha; itens: Item[]; externo?: CentralOrder
 }
-const abas: Array<{ id: Aba; nome: string }> = [{ id: 'fila', nome: 'Fila de preparo' }, { id: 'prontos', nome: 'Prontos / entregues' }, { id: 'cancelados', nome: 'Cancelados' }]
-const controle = 'h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-amarelo focus:ring-2 focus:ring-amarelo/20'
+const abas: Array<{ id: Aba; nome: string; nomeCurto: string }> = [
+  { id: 'fila', nome: 'Fila de preparo', nomeCurto: 'Fila' },
+  { id: 'prontos', nome: 'Entregues', nomeCurto: 'Entregues' },
+  { id: 'cancelados', nome: 'Cancelados', nomeCurto: 'Cancelados' },
+]
+const controle = 'h-11 rounded-xl border border-slate-200 bg-white px-3 text-base sm:text-sm outline-none focus:border-amarelo focus:ring-2 focus:ring-amarelo/20'
 const normalizar = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
 
 function agrupar(items: CozinhaItem[]): PedidoCozinha[] {
@@ -69,8 +73,8 @@ function CancelarRestaurante({ pedido, fechar, confirmar }: { pedido: PedidoCozi
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => { const el = dialog.current; el?.showModal(); return () => el?.close() }, [])
-  return <dialog ref={dialog} onCancel={(e) => { if (busy) e.preventDefault(); else fechar() }} aria-labelledby="cancelar-restaurante-titulo" className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-slate-200 p-6 font-barlow shadow-xl backdrop:bg-black/45">
-    <h2 id="cancelar-restaurante-titulo" className="font-barlow-condensed text-2xl font-bold">Cancelar {pedido.nome}?</h2><p className="mt-2 text-sm text-slate-500">O pedido será removido da fila. Informe o motivo para continuar.</p><label className="mt-5 block text-sm font-semibold" htmlFor="motivo-restaurante">Motivo do cancelamento</label><textarea autoFocus id="motivo-restaurante" rows={3} value={motivo} onChange={(e) => setMotivo(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-amarelo" />{error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}<div className="mt-5 flex gap-3"><button disabled={busy} className={`${controle} flex-1`} onClick={fechar}>Manter pedido</button><button disabled={busy || !motivo.trim()} className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50" onClick={async () => { setBusy(true); try { await confirmar(motivo.trim()) } catch { setError('Não foi possível cancelar o pedido.'); setBusy(false) } }}>Cancelar pedido</button></div>
+  return <dialog ref={dialog} onCancel={(e) => { if (busy) e.preventDefault(); else fechar() }} aria-labelledby="cancelar-restaurante-titulo" className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-slate-200 p-5 sm:p-6 font-barlow shadow-xl backdrop:bg-black/45">
+    <h2 id="cancelar-restaurante-titulo" className="font-barlow-condensed text-2xl font-bold">Cancelar {pedido.nome}?</h2><p className="mt-2 text-sm text-slate-500">O pedido será removido da fila. Informe o motivo para continuar.</p><label className="mt-5 block text-sm font-semibold" htmlFor="motivo-restaurante">Motivo do cancelamento</label><textarea autoFocus id="motivo-restaurante" rows={3} value={motivo} onChange={(e) => setMotivo(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-base sm:text-sm outline-none focus:border-amarelo" />{error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}<div className="mt-5 flex gap-3"><button disabled={busy} className={`${controle} flex-1`} onClick={fechar}>Manter pedido</button><button disabled={busy || !motivo.trim()} className="min-h-11 flex-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50" onClick={async () => { setBusy(true); try { await confirmar(motivo.trim()) } catch { setError('Não foi possível cancelar o pedido.'); setBusy(false) } }}>Cancelar pedido</button></div>
   </dialog>
 }
 
@@ -85,10 +89,76 @@ function PedidoCard({ pedido, busy, detailBusy, preparar, pronto, cancelar, deta
   const canReady = external ? external.actions.includes('readyToPickup') : !closed
   const status = external ? estadoPedido(external) : pedido.status === 'preparando' ? 'Em preparo' : pedido.status === 'entregue' ? 'Entregue' : pedido.status === 'cancelado' ? 'Cancelado' : 'Na fila'
   return <article className={`flex h-full flex-col overflow-hidden rounded-2xl border shadow-[0_2px_8px_rgba(0,0,0,0.03)] ${isIfood ? 'border-[#ea1d2c] bg-white' : pedido.status === 'preparando' ? 'border-amber-300 bg-white ring-1 ring-amber-200/60' : 'border-slate-200 bg-white'}`}>
-    <header className={`flex items-start justify-between gap-2 border-b px-4 py-3.5 ${isIfood ? 'border-[#ea1d2c] bg-[#ea1d2c] text-white' : 'border-slate-100'}`}><div className="min-w-0"><div className="mb-1 flex h-6 items-center gap-2">{pedido.origem === 'ifood' ? <img src={logoIfood} alt="iFood" className="h-7 w-11 object-contain brightness-0 invert" /> : <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400"><Utensils size={12} /> Restaurante</span>}</div><h2 className="truncate font-barlow-condensed text-xl font-bold">{pedido.nome}</h2><p className={`mt-1 text-xs ${isIfood ? 'text-white/90' : 'text-slate-400'}`}>{pedido.origem === 'proprio' && `#${pedido.id} · Lote ${pedido.lote} · `}{horaPedido(pedido.createdAt)}</p></div><div className="flex shrink-0">{external?.payload?.items && <button type="button" aria-label={`Imprimir comanda de ${pedido.nome}`} title="Imprimir comanda" onClick={() => imprimirComanda(external)} className={`rounded-lg p-2 transition focus-visible:outline-2 focus-visible:outline-amarelo ${isIfood ? 'text-white hover:bg-white/20' : 'text-slate-400 hover:bg-slate-100 hover:text-preto-v1'}`}><Printer size={19} /></button>}<button type="button" aria-label={`Ver detalhes de ${pedido.nome}`} title="Ver detalhes do pedido" disabled={detailBusy} onClick={detalhes} className={`rounded-lg p-2 transition focus-visible:outline-2 focus-visible:outline-amarelo ${isIfood ? 'text-white hover:bg-white/20' : 'text-slate-400 hover:bg-slate-100 hover:text-preto-v1'}`}>{detailBusy ? <LoaderCircle size={19} className="animate-spin" /> : <Info size={19} />}</button></div></header>
-    <div className="flex-1 px-4 py-4"><ul className="space-y-4">{pedido.itens.map((item, i) => <li key={i}><div className="flex items-start gap-2.5"><span className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded bg-slate-100 px-1 text-xs font-bold">{item.quantidade}</span><p className="pt-0.5 text-sm font-semibold leading-snug">{item.nome}</p></div>{item.adicionais.length > 0 && <ul className="mt-1.5 space-y-1 pl-8 text-xs text-slate-500">{item.adicionais.map((a, j) => <li key={j}>+ {a}</li>)}</ul>}{item.observacao && <p className="mt-2 rounded-md bg-red-50 px-2.5 py-2 text-xs font-semibold leading-relaxed whitespace-pre-line text-red-700">{item.observacao}</p>}</li>)}</ul>{pedido.itens.length === 0 && <p className="text-xs text-slate-500">Consulte os detalhes para conferir este pedido.</p>}</div>
+    <header className={`flex items-start justify-between gap-2 border-b px-4 py-3.5 ${isIfood ? 'border-[#ea1d2c] bg-[#ea1d2c] text-white' : 'border-slate-100'}`}><div className="min-w-0"><div className="mb-1 flex h-6 items-center gap-2">{pedido.origem === 'ifood' ? <img src={logoIfood} alt="iFood" className="h-7 w-11 object-contain brightness-0 invert" /> : <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400"><Utensils size={12} /> Restaurante</span>}</div><h2 className="truncate font-barlow-condensed text-xl font-bold">{pedido.nome}</h2><p className={`mt-1 text-xs ${isIfood ? 'text-white/90' : 'text-slate-400'}`}>{pedido.origem === 'proprio' && `#${pedido.id} · Lote ${pedido.lote} · `}{horaPedido(pedido.createdAt)}</p></div><div className="flex shrink-0 gap-1">{external?.payload?.items && <button type="button" aria-label={`Imprimir comanda de ${pedido.nome}`} title="Imprimir comanda" onClick={() => imprimirComanda(external)} className={`flex h-10 w-10 items-center justify-center rounded-lg transition focus-visible:outline-2 focus-visible:outline-amarelo ${isIfood ? 'text-white hover:bg-white/20' : 'text-slate-400 hover:bg-slate-100 hover:text-preto-v1'}`}><Printer size={19} /></button>}<button type="button" aria-label={`Ver detalhes de ${pedido.nome}`} title="Ver detalhes do pedido" disabled={detailBusy} onClick={detalhes} className={`flex h-10 w-10 items-center justify-center rounded-lg transition focus-visible:outline-2 focus-visible:outline-amarelo ${isIfood ? 'text-white hover:bg-white/20' : 'text-slate-400 hover:bg-slate-100 hover:text-preto-v1'}`}>{detailBusy ? <LoaderCircle size={19} className="animate-spin" /> : <Info size={19} />}</button></div></header>
+    <div className="flex-1 px-4 py-4">
+      <ul className="space-y-4">
+        {pedido.itens.map((item, i) => (
+          <li key={i}>
+            <div className="flex items-start gap-2.5">
+              <span className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded bg-slate-100 px-1 text-xs font-bold">
+                {item.quantidade}
+              </span>
+              <p className="pt-0.5 text-sm font-semibold leading-snug">{item.nome}</p>
+            </div>
+            {(item.adicionais.length > 0 || item.observacao) && (
+              <div className="mt-2 space-y-1">
+                {item.adicionais.length > 0 && (
+                  <p className="rounded-md border border-emerald-200 bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-900">
+                    Adicionais: {item.adicionais.join(', ')}
+                  </p>
+                )}
+                {item.observacao &&
+                  item.observacao.split('\n').map((linha, j) => {
+                    if (linha.startsWith('Remover:')) {
+                      return (
+                        <p
+                          key={j}
+                          className="rounded-md border border-red-200 bg-red-100 px-2.5 py-1 text-xs font-black text-red-800"
+                        >
+                          {linha}
+                        </p>
+                      )
+                    }
+                    if (linha.startsWith('Maionese:')) {
+                      return (
+                        <p
+                          key={j}
+                          className="rounded-md border border-amber-200 bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-900"
+                        >
+                          {linha}
+                        </p>
+                      )
+                    }
+                    if (linha.startsWith('Combo:')) {
+                      return (
+                        <p
+                          key={j}
+                          className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700"
+                        >
+                          {linha}
+                        </p>
+                      )
+                    }
+                    return (
+                      <p
+                        key={j}
+                        className="rounded-md bg-red-50 px-2.5 py-1.5 text-xs font-semibold leading-relaxed text-red-700"
+                      >
+                        {linha}
+                      </p>
+                    )
+                  })}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {pedido.itens.length === 0 && (
+        <p className="text-xs text-slate-500">Consulte os detalhes para conferir este pedido.</p>
+      )}
+    </div>
     <div className="px-4 pb-3"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${pedido.status === 'cancelado' ? 'bg-red-50 text-red-700' : closed ? 'bg-emerald-50 text-emerald-700' : pedido.status === 'preparando' ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-600'}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{status}</span>{pending && <p role="status" className="mt-2 flex items-start gap-1.5 text-xs text-blue-700"><Clock3 size={13} className="shrink-0" />{estadosSincronizacao[pending.state]}</p>}{external?.estado_operacional === 'PLACED' && <div className="mt-2"><PrazoConfirmacao prazo={external.confirmation_deadline} agendado={external.scheduled} compacto /></div>}{external?.dispute && <p className="mt-2 text-xs font-semibold text-red-700">Negociação aberta pelo cliente. Abra os detalhes para responder.</p>}{external?.alerts.length && !external.dispute ? <p className="mt-2 text-xs text-amber-800">Há uma atualização importante nos detalhes.</p> : null}</div>
-    {!closed && <footer className="flex flex-wrap gap-2 border-t border-slate-100 bg-slate-50/60 p-3"><button disabled={busy || !canPrepare} onClick={preparar} className="min-h-10 flex-1 rounded-lg border border-amber-200 bg-amarelo/20 px-2 text-xs font-semibold disabled:opacity-40">Preparar</button><button disabled={busy || !canReady} onClick={pronto} className="min-h-10 flex-1 rounded-lg bg-emerald-600 px-2 text-xs font-semibold text-white disabled:opacity-40">{pedido.origem === 'ifood' ? 'Marcar pronto' : 'Entregue'}</button>{pedido.origem === 'proprio' && <button disabled={busy} onClick={cancelar} className="min-h-10 rounded-lg border border-red-100 px-2 text-xs font-semibold text-red-700 disabled:opacity-40">Cancelar</button>}</footer>}
+    {!closed && <footer className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50/60 p-3 sm:flex sm:flex-wrap"><button disabled={busy || !canPrepare} onClick={preparar} className="min-h-11 flex-1 rounded-lg border border-amber-200 bg-amarelo/20 px-2 text-xs font-bold disabled:opacity-40 transition active:scale-95">Preparar</button><button disabled={busy || !canReady} onClick={pronto} className="min-h-11 flex-1 rounded-lg bg-emerald-600 px-2 text-xs font-bold text-white disabled:opacity-40 transition active:scale-95">{pedido.origem === 'ifood' ? 'Marcar pronto' : 'Entregue'}</button>{pedido.origem === 'proprio' && <button disabled={busy} onClick={cancelar} className="col-span-2 min-h-11 rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 disabled:opacity-40 transition active:scale-95 sm:col-span-1 sm:flex-none hover:bg-red-50">Cancelar</button>}</footer>}
   </article>
 }
 
@@ -194,14 +264,14 @@ export default function Cozinha() {
     finally { mutationBusy.current = false; setBusy(null) }
   }
   const loading = Boolean(unidadeId) && result?.key !== key
-  return <main className={`min-h-screen bg-[#f8f9fb] font-barlow text-preto-v1 ${CLASSE_OFFSET_BARRA_ADMIN}`}><BarraDeNavegacaoAdmin /><section className="mx-auto max-w-[1440px] px-4 py-6 sm:px-8 sm:py-8">
+  return <main className={`min-h-screen w-full max-w-full overflow-x-hidden bg-[#f8f9fb] font-barlow text-preto-v1 ${CLASSE_OFFSET_BARRA_ADMIN}`}><BarraDeNavegacaoAdmin /><section className="mx-auto max-w-[1440px] px-4 py-6 sm:px-8 sm:py-8">
     <a href="/admin" className="mb-5 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-preto-v1"><ArrowLeft size={16} /> Painel</a>
-    <header className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Operação</p><h1 className="font-barlow-condensed text-4xl font-bold uppercase">Cozinha</h1><p className="mt-1 text-sm text-slate-500">Uma fila para todos os pedidos. Prepare por ordem de chegada.</p></div><select aria-label="Unidade da cozinha" value={unidadeId ?? ''} disabled={Boolean(userUnit) || unidades.length <= 1} onChange={(e) => { setUnidadeId(Number(e.target.value) || null); setBusca(''); setSelected(null); setCancelando(null) }} className={`${controle} w-full disabled:text-slate-500 sm:w-auto sm:min-w-56`}>{!unidadeId && <option value="">Selecione uma unidade</option>}{unidades.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}</select></header>
-    <div className="mb-5 flex flex-col justify-between gap-3 lg:flex-row"><div role="tablist" aria-label="Visualização da cozinha" className="flex rounded-xl border border-slate-200 bg-white p-1">{abas.map((tab, i) => <button key={tab.id} ref={(el) => { tabRefs.current[i] = el }} role="tab" aria-selected={aba === tab.id} aria-controls="fila-cozinha" id={`cozinha-${tab.id}`} tabIndex={aba === tab.id ? 0 : -1} onKeyDown={(e) => { if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return; e.preventDefault(); const next = e.key === 'Home' ? 0 : e.key === 'End' ? 2 : (i + (e.key === 'ArrowRight' ? 1 : 2)) % 3; setAba(abas[next].id); tabRefs.current[next]?.focus() }} onClick={() => setAba(tab.id)} className={`min-h-10 flex-1 rounded-lg px-3 text-xs font-semibold whitespace-nowrap transition sm:px-5 sm:text-sm ${aba === tab.id ? 'bg-amarelo text-preto-v1 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>{tab.nome}</button>)}</div><label className="relative flex items-center lg:w-80"><Search size={18} aria-hidden className="absolute left-4 text-slate-400" /><input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar pedido na cozinha" placeholder="Buscar pedido, comanda ou item…" className={`${controle} w-full pl-11 pr-9`} />{busca && <button aria-label="Limpar busca" onClick={() => setBusca('')} className="absolute right-3 p-1 text-slate-400"><X size={14} /></button>}</label></div>
-    <div role="group" aria-label="Filtrar pedidos por origem" className="mb-4 flex w-full gap-1 rounded-xl border border-slate-200 bg-white p-1 sm:w-fit">
-      {([{ id: 'todos', nome: 'Todos' }, { id: 'ifood', nome: 'iFood' }, { id: 'proprio', nome: 'Restaurante' }] as const).map((source) => <button key={source.id} type="button" aria-pressed={origem === source.id} onClick={() => setOrigem(source.id)} className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition sm:gap-2 sm:px-4 sm:text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-preto-v1 sm:flex-none ${origem === source.id ? source.id === 'ifood' ? 'bg-[#ea1d2c] text-white shadow-sm' : 'bg-preto-v1 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>
+    <header className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4"><div><h1 className="font-barlow-condensed text-3xl sm:text-4xl font-bold uppercase">Cozinha</h1></div><select aria-label="Unidade da cozinha" value={unidadeId ?? ''} disabled={Boolean(userUnit) || unidades.length <= 1} onChange={(e) => { setUnidadeId(Number(e.target.value) || null); setBusca(''); setSelected(null); setCancelando(null) }} className={`${controle} w-full disabled:text-slate-500 sm:w-auto sm:min-w-56`}>{!unidadeId && <option value="">Selecione uma unidade</option>}{unidades.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}</select></header>
+    <div className="mb-5 flex flex-col justify-between gap-3 lg:flex-row"><div role="tablist" aria-label="Visualização da cozinha" className="flex overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 no-scrollbar">{abas.map((tab, i) => <button key={tab.id} ref={(el) => { tabRefs.current[i] = el }} role="tab" aria-selected={aba === tab.id} aria-controls="fila-cozinha" id={`cozinha-${tab.id}`} tabIndex={aba === tab.id ? 0 : -1} onKeyDown={(e) => { if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return; e.preventDefault(); const next = e.key === 'Home' ? 0 : e.key === 'End' ? 2 : (i + (e.key === 'ArrowRight' ? 1 : 2)) % 3; setAba(abas[next].id); tabRefs.current[next]?.focus() }} onClick={() => setAba(tab.id)} className={`min-h-11 flex-1 rounded-lg px-2.5 text-xs font-semibold whitespace-nowrap transition sm:px-5 sm:text-sm ${aba === tab.id ? 'bg-amarelo text-preto-v1 shadow-sm font-bold' : 'text-slate-500 hover:bg-slate-50'}`}><span className="sm:hidden">{tab.nomeCurto}</span><span className="hidden sm:inline">{tab.nome}</span></button>)}</div><label className="relative flex items-center lg:w-80"><Search size={18} aria-hidden className="absolute left-4 text-slate-400" /><input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar pedido na cozinha" placeholder="Buscar pedido, comanda ou item…" className={`${controle} w-full pl-11 pr-9`} />{busca && <button aria-label="Limpar busca" onClick={() => setBusca('')} className="absolute right-3 p-1 text-slate-400"><X size={14} /></button>}</label></div>
+    <div role="group" aria-label="Filtrar pedidos por origem" className="mb-4 flex w-full gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 no-scrollbar sm:w-fit">
+      {([{ id: 'todos', nome: 'Todos' }, { id: 'ifood', nome: 'iFood' }, { id: 'proprio', nome: 'Restaurante' }] as const).map((source) => <button key={source.id} type="button" aria-pressed={origem === source.id} onClick={() => setOrigem(source.id)} className={`inline-flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition sm:gap-2 sm:px-4 sm:text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-preto-v1 sm:flex-none ${origem === source.id ? source.id === 'ifood' ? 'bg-[#ea1d2c] text-white shadow-sm font-bold' : 'bg-preto-v1 text-white shadow-sm font-bold' : 'text-slate-600 hover:bg-slate-100'}`}>
         {source.id === 'ifood' && <img src={logoIfood} alt="" className={`h-6 w-7 object-contain sm:w-9 ${origem === 'ifood' ? 'brightness-0 invert' : ''}`} />}
-        {source.id === 'proprio' && <Utensils size={16} aria-hidden />}{source.nome}
+        {source.id === 'proprio' && <Utensils size={15} aria-hidden />}{source.nome}
       </button>)}
     </div>
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500"><p aria-live="polite">{loading ? 'Atualizando fila…' : `${filtered.length} ${filtered.length === 1 ? 'pedido' : 'pedidos'}${busca || origem !== 'todos' ? ` de ${items.length}` : ''}`}</p><p className="flex items-center gap-3"><span className="inline-flex items-center gap-1"><Utensils size={12} /> Restaurante</span><span className="inline-flex items-center gap-1"><img src={logoIfood} alt="iFood" className="h-5 w-8 object-contain" /></span></p></div>

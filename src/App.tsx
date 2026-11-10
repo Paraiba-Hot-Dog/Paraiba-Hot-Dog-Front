@@ -20,7 +20,7 @@ import Login from './telas/usuario/Login'
 import SobreNos from './telas/usuario/SobreNos'
 import RecuperarSenha from './telas/usuario/RecuperarSenha'
 import RedefinirSenha from './telas/usuario/RedefinirSenha'
-import UnidadeAraucarias from './telas/usuario/UnidadeAraucarias'
+import DetalhesUnidade from './telas/usuario/DetalhesUnidade'
 import Pedidos from './telas/administrador/Pedidos'
 import AnotarPedidos from './telas/administrador/AnotarPedidos'
 import type { NomePermissaoApi } from './servicos/usuariosApi'
@@ -185,7 +185,7 @@ export default function App() {
   }
 
   if (pathname.startsWith('/unidades/')) {
-    return <UnidadeAraucarias slug={pathname.replace('/unidades/', '')} />
+    return <DetalhesUnidade slug={pathname.replace('/unidades/', '')} />
   }
 
   return <Inicio />

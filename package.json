@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:ifood",
     "preview": "vite preview",
     "test:ifood": "node --test tests/valoresIfood.test.mjs"
   },

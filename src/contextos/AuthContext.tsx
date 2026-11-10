@@ -59,7 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoadingUser, setIsLoadingUser] = useState(
     isAuthenticated && !getCachedUser(),
   )
-  const tokenRoles = tokenExpirado(token) ? [] : extrairRolesToken(token)
+  const tokenRoles = useMemo(
+    () => (tokenExpirado(token) ? [] : extrairRolesToken(token)),
+    [token],
+  )
   const roles = useMemo(() => {
     const combined = new Set(tokenRoles)
     if (usuarioAtual?.funcao) combined.add(usuarioAtual.funcao)
@@ -71,20 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   useEffect(() => {
+    if (!isAuthenticated) return
+
     const emailToken = extrairEmailToken(token)
     const emailSalvo = localStorage.getItem(loggedUserEmailKey)
     const identificadorEmail = emailToken?.includes('@') ? emailToken : emailSalvo
     const subject = extrairSubjectToken(token)
 
-    if (!isAuthenticated) {
-      setUsuarioAtual(null)
-      setCachedUser(null)
-      setIsLoadingUser(false)
-      return
-    }
-
     let ativo = true
-    if (!getCachedUser()) setIsLoadingUser(true)
 
     const carregarUsuario = identificadorEmail
       ? listarUsuariosApi({ email: identificadorEmail })

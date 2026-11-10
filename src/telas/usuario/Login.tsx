@@ -31,7 +31,7 @@ export default function Login() {
       window.location.href = '/'
     } catch (error) {
       console.error('Login error:', error)
-      alert('Credenciais invalidas ou servidor fora do ar. Verifique seus dados e tente novamente.')
+      alert('Credenciais inválidas. Verifique seus dados e tente novamente.')
     } finally {
       setLoading(false)
     }

@@ -52,6 +52,15 @@ body {
   background: linear-gradient(180deg, rgba(195, 195, 195, 0.95), rgba(145, 145, 145, 0.8));
 }
 
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 button {
   font: inherit;
 }

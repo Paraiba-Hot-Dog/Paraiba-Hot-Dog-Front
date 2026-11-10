@@ -27,6 +27,24 @@ export type AdicionalProdutoApi = {
   preco: string
 }
 
+export type OpcaoComplementoApi = {
+  id: number
+  grupo_id: number
+  nome: string
+  preco: string | number
+  ativo: boolean
+}
+
+export type GrupoOpcaoApi = {
+  id: number
+  nome: string
+  obrigatorio: boolean
+  minimo: number
+  maximo: number | null
+  ativo: boolean
+  opcoes: OpcaoComplementoApi[]
+}
+
 export type ProdutoCardapioApi = {
   id: number
   nome: string
@@ -39,6 +57,10 @@ export type ProdutoCardapioApi = {
   unidade_ids: number[]
   variacoes: VariacaoProdutoApi[]
   adicionais: AdicionalProdutoApi[]
+  grupos?: GrupoOpcaoApi[]
+  disponivel_no_combo?: boolean
+  disponivel_combo?: boolean
+  valor_adicional_combo?: number
 }
 
 async function respostaJson<T>(response: Response, recurso: string) {

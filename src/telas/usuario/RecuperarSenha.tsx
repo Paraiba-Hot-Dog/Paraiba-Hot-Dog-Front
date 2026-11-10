@@ -40,12 +40,13 @@ export default function RecuperarSenha() {
   const [segundos, setSegundos] = useState(0)
   const [jaEnviou, setJaEnviou] = useState(false)
 
-  useEffect(() => {
-    const chave = email.trim().toLowerCase()
+  function aoMudarEmail(novoEmail: string) {
+    setEmail(novoEmail)
+    const chave = novoEmail.trim().toLowerCase()
     const tinhaPrazo = Boolean(chave && lerPrazos()[chave] != null)
-    setSegundos(segundosDoEmail(email))
+    setSegundos(segundosDoEmail(novoEmail))
     setJaEnviou(tinhaPrazo)
-  }, [email])
+  }
 
   useEffect(() => {
     if (segundos <= 0) return undefined
@@ -55,7 +56,7 @@ export default function RecuperarSenha() {
     }, 1000)
 
     return () => window.clearInterval(timer)
-  }, [segundos > 0])
+  }, [segundos])
 
   function iniciarContagem(total: number) {
     gravarPrazo(email, total)
@@ -133,7 +134,7 @@ export default function RecuperarSenha() {
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(event) => {
-                  setEmail(event.target.value)
+                  aoMudarEmail(event.target.value)
                   setMensagem('')
                 }}
                 required
