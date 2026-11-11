@@ -2521,7 +2521,9 @@ function agruparProdutosPorTamanho(produtos: ProdutoCardapioApi[]): Produto[] {
 
   const gruposPorChave = new Map<string, ItemGrupo[]>()
 
-  produtos.forEach((produto) => {
+  const produtosOrdenados = [...produtos].sort((a, b) => a.id - b.id)
+
+  produtosOrdenados.forEach((produto) => {
     const { base, rotulo, ordem } = separarTamanho(produto.nome)
     const chave = normalizarTexto(base)
     const lista = gruposPorChave.get(chave) ?? []
@@ -2600,6 +2602,18 @@ function agruparProdutosPorTamanho(produtos: ProdutoCardapioApi[]): Produto[] {
   return produtosResultado
 }
 
+const PRIORIDADE_CATEGORIAS: RegExp[] = [
+  /smash/i,
+  /hot\s*[-_]?\s*dog/i,
+  /acompanha/i,
+  /bebida/i,
+]
+
+function obterPrioridadeCategoria(nome: string): number {
+  const index = PRIORIDADE_CATEGORIAS.findIndex((padrao) => padrao.test(nome))
+  return index === -1 ? PRIORIDADE_CATEGORIAS.length : index
+}
+
 function mapearCardapioApi(
   produtosApi: ProdutoCardapioApi[],
   categoriasApi: Array<{ id: number; nome: string }>,
@@ -2619,11 +2633,20 @@ function mapearCardapioApi(
     grupos.set(titulo, produtos)
   })
 
-  return Array.from(grupos.entries()).map(([titulo, produtosSecao], index) => ({
-    id: `api-${index}-${normalizarTexto(titulo)}`,
-    titulo,
-    produtos: agruparProdutosPorTamanho(produtosSecao),
-  }))
+  return Array.from(grupos.entries())
+    .sort(([tituloA], [tituloB]) => {
+      const prioridadeA = obterPrioridadeCategoria(tituloA)
+      const prioridadeB = obterPrioridadeCategoria(tituloB)
+      if (prioridadeA !== prioridadeB) {
+        return prioridadeA - prioridadeB
+      }
+      return tituloA.localeCompare(tituloB, 'pt-BR')
+    })
+    .map(([titulo, produtosSecao], index) => ({
+      id: `api-${index}-${normalizarTexto(titulo)}`,
+      titulo,
+      produtos: agruparProdutosPorTamanho(produtosSecao),
+    }))
 }
 
 function mapearProdutoApi(produto: ProdutoCardapioApi): Produto {
