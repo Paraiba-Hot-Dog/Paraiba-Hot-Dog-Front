@@ -40,16 +40,36 @@ export function salvarOrdemCategorias(categorias: CategoriaRead[]) {
   );
 }
 
+const PRIORIDADE_CATEGORIAS_PADRAO: RegExp[] = [
+  /smash/i,
+  /hot\s*[-_]?\s*dog/i,
+  /acompanha/i,
+  /bebida/i,
+];
+
+export function obterPrioridadeCategoria(nome: string): number {
+  const indice = PRIORIDADE_CATEGORIAS_PADRAO.findIndex((padrao) =>
+    padrao.test(nome),
+  );
+  return indice === -1 ? PRIORIDADE_CATEGORIAS_PADRAO.length : indice;
+}
+
 export function ordenarCategoriasCardapio(
   categorias: CategoriaRead[],
 ): CategoriaRead[] {
   const ordem = lerOrdemCategoriasSalva();
 
-  return [...categorias].sort(
-    (a, b) =>
-      indiceCategoriaOrdenada(a.id, ordem) -
-      indiceCategoriaOrdenada(b.id, ordem),
-  );
+  return [...categorias].sort((a, b) => {
+    const indiceA = indiceCategoriaOrdenada(a.id, ordem);
+    const indiceB = indiceCategoriaOrdenada(b.id, ordem);
+    if (indiceA !== indiceB) return indiceA - indiceB;
+
+    const prioridadeA = obterPrioridadeCategoria(a.nome);
+    const prioridadeB = obterPrioridadeCategoria(b.nome);
+    if (prioridadeA !== prioridadeB) return prioridadeA - prioridadeB;
+
+    return a.nome.localeCompare(b.nome, "pt-BR");
+  });
 }
 
 export function ordenarSecoesCardapio(
@@ -57,11 +77,17 @@ export function ordenarSecoesCardapio(
 ): SecaoCardapio[] {
   const ordem = lerOrdemCategoriasSalva();
 
-  return [...secoes].sort(
-    (a, b) =>
-      indiceCategoriaOrdenada(a.categoria_id, ordem) -
-      indiceCategoriaOrdenada(b.categoria_id, ordem),
-  );
+  return [...secoes].sort((a, b) => {
+    const indiceA = indiceCategoriaOrdenada(a.categoria_id, ordem);
+    const indiceB = indiceCategoriaOrdenada(b.categoria_id, ordem);
+    if (indiceA !== indiceB) return indiceA - indiceB;
+
+    const prioridadeA = obterPrioridadeCategoria(a.titulo);
+    const prioridadeB = obterPrioridadeCategoria(b.titulo);
+    if (prioridadeA !== prioridadeB) return prioridadeA - prioridadeB;
+
+    return a.titulo.localeCompare(b.titulo, "pt-BR");
+  });
 }
 
 const buscarJson = async <T>(
