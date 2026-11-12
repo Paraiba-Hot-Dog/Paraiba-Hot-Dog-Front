@@ -32,12 +32,17 @@ export async function listarClientesApi(params: ListarClientesParams) {
 export async function criarClienteApi(data: {
   nome: string
   telefone: string
-  email: string
+  email?: string | null
 }) {
   const response = await apiFetch('/clientes/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...data, pontos_fidelidade: 0 }),
+    body: JSON.stringify({
+      nome: data.nome,
+      telefone: data.telefone,
+      email: data.email?.trim() || null,
+      pontos_fidelidade: 0,
+    }),
   })
 
   if (!response.ok) {
