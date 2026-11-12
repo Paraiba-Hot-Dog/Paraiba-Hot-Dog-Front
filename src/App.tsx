@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import CardapioAdm from './telas/administrador/CardapioAdm'
 import Painel from './telas/administrador/Painel'
 import Configuracoes from './telas/administrador/Configuracoes'
@@ -254,9 +254,40 @@ function RedirectTo({ href }: { href: string }) {
 }
 
 function CarregandoAcesso() {
+  const [demorando, setDemorando] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDemorando(true), 4000)
+    return () => clearTimeout(timer)
+  }, [])
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-branco px-6 text-center">
-      <p className="font-barlow text-cinza-base">Carregando permissões...</p>
+    <main
+      className="flex min-h-screen flex-col items-center justify-center bg-branco px-6 text-center"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-amarelo" />
+        <p className="font-barlow text-base font-medium text-preto-v1">
+          Carregando permissões...
+        </p>
+
+        {demorando && (
+          <div className="mt-2 flex max-w-sm flex-col items-center gap-3">
+            <p className="font-barlow text-xs text-cinza-base">
+              A conexão está demorando um pouco mais que o esperado.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-lg bg-gray-100 px-4 py-2 font-barlow text-xs font-semibold text-preto-v1 transition-colors hover:bg-gray-200"
+            >
+              Recarregar página
+            </button>
+          </div>
+        )}
+      </div>
     </main>
   )
 }

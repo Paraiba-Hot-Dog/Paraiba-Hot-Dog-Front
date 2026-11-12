@@ -7,7 +7,12 @@ import {
   tokenExpirado,
 } from '../servicos/authToken'
 import { listarUsuariosApi, type UsuarioApi } from '../servicos/usuariosApi'
-import { AuthContext, type AuthContextValue } from './authContextCore'
+import {
+  AuthContext,
+  getCachedUser,
+  setCachedUser,
+  type AuthContextValue,
+} from './authContextCore'
 
 const loggedUserEmailKey = 'logged_user_email'
 
@@ -29,25 +34,6 @@ function readToken() {
   }
 
   return null
-}
-
-const cachedUserKey = 'cached_usuario_atual'
-
-function getCachedUser(): UsuarioApi | null {
-  try {
-    const raw = sessionStorage.getItem(cachedUserKey)
-    return raw ? (JSON.parse(raw) as UsuarioApi) : null
-  } catch {
-    return null
-  }
-}
-
-function setCachedUser(usuario: UsuarioApi | null) {
-  if (usuario) {
-    sessionStorage.setItem(cachedUserKey, JSON.stringify(usuario))
-  } else {
-    sessionStorage.removeItem(cachedUserKey)
-  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -100,17 +86,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUsuarioAtual(usuarioEncontrado)
         setCachedUser(usuarioEncontrado)
       })
-      .catch(() => {
-        if (ativo) setUsuarioAtual(null)
+      .catch((err) => {
+        if (!ativo) return
+        console.warn('Falha ao atualizar dados do usuário em background:', err)
+        // Se já temos um usuário em cache, mantemos sem deslogar por oscilação de rede
+        setUsuarioAtual((prev) => prev ?? null)
       })
       .finally(() => {
-        if (ativo) setIsLoadingUser(false)
+        if (ativo) {
+          setIsLoadingUser(false)
+        }
       })
 
     return () => {
       ativo = false
     }
   }, [isAuthenticated, token])
+
+  // Safeguard: sob nenhuma circunstância a tela deve ficar travada em loading por mais de 8s
+  useEffect(() => {
+    if (!isLoadingUser) return
+
+    const timer = setTimeout(() => {
+      setIsLoadingUser(false)
+    }, 8000)
+
+    return () => clearTimeout(timer)
+  }, [isLoadingUser])
 
   const value = useMemo<AuthContextValue>(() => {
     const getToken = () => readToken()

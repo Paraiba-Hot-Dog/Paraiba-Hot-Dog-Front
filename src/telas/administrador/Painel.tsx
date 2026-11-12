@@ -6,6 +6,7 @@ import ModalConfirmacaoSaida from '../../componentes/administrador/painel/ModalC
 import OpcoesPainel from '../../componentes/administrador/painel/OpcoesPainel'
 import SeletorUnidade from '../../componentes/administrador/painel/SeletorUnidade'
 import { listarUnidades, type Unidade } from '../../servicos/api'
+import { clearAuthTokens } from '../../servicos/apiFetch'
 import { useAuth } from '../../contextos/useAuth'
 
 export default function Painel() {
@@ -75,6 +76,7 @@ export default function Painel() {
 
   function confirmarSaida() {
     setModalSairAberto(false)
+    clearAuthTokens()
     window.location.href = '/login'
   }
 
