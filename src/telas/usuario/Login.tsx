@@ -4,6 +4,7 @@ import logoBranca from '../../imagens/logos/logo-branca.png'
 import { login } from '../../servicos/authApi'
 import { extrairEmailToken } from '../../servicos/authToken'
 import { listarUsuariosApi } from '../../servicos/usuariosApi'
+import { setCachedUser } from '../../contextos/authContextCore'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -22,6 +23,10 @@ export default function Login() {
       const emailToken = extrairEmailToken(tokens.access_token)
       const usuarios = emailToken ? await listarUsuariosApi({ email: emailToken }) : []
       const usuario = usuarios[0]
+
+      if (usuario) {
+        setCachedUser(usuario)
+      }
 
       if (usuario?.funcao === 'administrador' || usuario?.permissoes.length) {
         window.location.href = '/admin'

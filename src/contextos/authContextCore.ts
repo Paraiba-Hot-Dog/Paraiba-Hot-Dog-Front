@@ -15,3 +15,25 @@ export type AuthContextValue = {
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
+
+export const cachedUserKey = 'cached_usuario_atual'
+
+export function getCachedUser(): UsuarioApi | null {
+  try {
+    const raw = sessionStorage.getItem(cachedUserKey) || localStorage.getItem(cachedUserKey)
+    return raw ? (JSON.parse(raw) as UsuarioApi) : null
+  } catch {
+    return null
+  }
+}
+
+export function setCachedUser(usuario: UsuarioApi | null) {
+  if (usuario) {
+    const serialized = JSON.stringify(usuario)
+    sessionStorage.setItem(cachedUserKey, serialized)
+    localStorage.setItem(cachedUserKey, serialized)
+  } else {
+    sessionStorage.removeItem(cachedUserKey)
+    localStorage.removeItem(cachedUserKey)
+  }
+}

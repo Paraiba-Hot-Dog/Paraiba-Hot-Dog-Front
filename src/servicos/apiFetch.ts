@@ -7,6 +7,16 @@ type ApiFetchOptions = RequestInit & {
   auth?: boolean
   baseUrl?: string
   params?: QueryParams
+  timeoutMs?: number
+}
+
+export function clearAuthTokens() {
+  for (const key of tokenKeys) {
+    localStorage.removeItem(key)
+  }
+  localStorage.removeItem('logged_user_email')
+  sessionStorage.removeItem('cached_usuario_atual')
+  localStorage.removeItem('cached_usuario_atual')
 }
 
 export function getStoredToken() {
@@ -53,7 +63,18 @@ export function buildApiUrl(path: string, params?: QueryParams, baseUrl = apiBas
   return url.toString()
 }
 
-export async function apiFetch(path: string, { auth = true, baseUrl, params, headers, ...options }: ApiFetchOptions = {}) {
+export async function apiFetch(
+  path: string,
+  {
+    auth = true,
+    baseUrl,
+    params,
+    headers,
+    timeoutMs = 15000,
+    signal,
+    ...options
+  }: ApiFetchOptions = {},
+) {
   const requestHeaders = new Headers(headers)
   const token = getStoredToken()
 
@@ -61,8 +82,26 @@ export async function apiFetch(path: string, { auth = true, baseUrl, params, hea
     requestHeaders.set('Authorization', `Bearer ${token}`)
   }
 
-  return fetch(buildApiUrl(path, params, baseUrl), {
-    ...options,
-    headers: requestHeaders,
-  })
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  let requestSignal = signal
+
+  if (!requestSignal && timeoutMs > 0) {
+    const controller = new AbortController()
+    timeoutId = setTimeout(() => {
+      controller.abort(new Error(`Timeout de ${timeoutMs}ms excedido na requisição para ${path}`))
+    }, timeoutMs)
+    requestSignal = controller.signal
+  }
+
+  try {
+    return await fetch(buildApiUrl(path, params, baseUrl), {
+      ...options,
+      headers: requestHeaders,
+      signal: requestSignal,
+    })
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+    }
+  }
 }
