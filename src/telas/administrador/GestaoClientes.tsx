@@ -1,8 +1,21 @@
 import { useEffect, useState } from 'react'
-import { Award, CheckCircle2, ChevronLeft, ChevronRight, LoaderCircle, Pencil, Search, Users } from 'lucide-react'
+import {
+  Award,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  LoaderCircle,
+  Mail,
+  Pencil,
+  Phone,
+  Search,
+  UserPlus,
+  Users,
+} from 'lucide-react'
 import BarraDeNavegacaoAdmin, {
   CLASSE_OFFSET_BARRA_ADMIN,
 } from '../../componentes/administrador/BarraDeNavegacaoAdmin'
+import ModalCadastroCliente from '../../componentes/administrador/clientes/ModalCadastroCliente'
 import ModalEdicaoCliente from '../../componentes/administrador/clientes/ModalEdicaoCliente'
 import ModalPontosCliente from '../../componentes/administrador/clientes/ModalPontosCliente'
 import { formatarTelefone, listarClientesApi, type ClienteApi } from '../../servicos/clientesApi'
@@ -30,6 +43,7 @@ export default function GestaoClientes() {
   const [tentativa, setTentativa] = useState(0)
   const [clienteEmEdicao, setClienteEmEdicao] = useState<ClienteApi | null>(null)
   const [clienteEmAjustePontos, setClienteEmAjustePontos] = useState<ClienteApi | null>(null)
+  const [modalCadastroAberto, setModalCadastroAberto] = useState(false)
   const [notificacao, setNotificacao] = useState<string | null>(null)
 
   useEffect(() => {
@@ -100,6 +114,12 @@ export default function GestaoClientes() {
     setNotificacao('Cliente atualizado com sucesso.')
   }
 
+  function concluirCadastro(novoCliente: ClienteApi) {
+    setClientes((atuais) => [novoCliente, ...atuais.filter((item) => item.id !== novoCliente.id)])
+    setModalCadastroAberto(false)
+    setNotificacao(`Cliente ${novoCliente.nome} cadastrado com sucesso.`)
+  }
+
   function concluirAjustePontos(atualizado: ClienteApi) {
     substituirCliente(atualizado)
     setClienteEmAjustePontos(null)
@@ -130,17 +150,28 @@ export default function GestaoClientes() {
             <Notificacao mensagem={notificacao} onFechar={() => setNotificacao(null)} />
           )}
 
-          <label className="relative block w-full sm:max-w-xs">
-            <span className="sr-only">Buscar clientes</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cinza-base/60" aria-hidden />
-            <input
-              type="search"
-              value={busca}
-              onChange={(event) => setBusca(event.target.value)}
-              placeholder="Buscar por nome, e-mail ou telefone"
-              className="w-full rounded-xl border border-[#d8dee7] bg-white py-3 pl-10 pr-3 font-barlow text-sm text-cinza-base outline-none transition focus:border-amarelo"
-            />
-          </label>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+            <label className="relative block w-full sm:w-72">
+              <span className="sr-only">Buscar clientes</span>
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cinza-base/60" aria-hidden />
+              <input
+                type="search"
+                value={busca}
+                onChange={(event) => setBusca(event.target.value)}
+                placeholder="Buscar por nome, e-mail ou telefone"
+                className="w-full rounded-xl border border-[#d8dee7] bg-white py-3 pl-10 pr-3 font-barlow text-sm text-cinza-base outline-none transition focus:border-amarelo"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={() => setModalCadastroAberto(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amarelo px-5 py-3 font-barlow-condensed text-sm font-black uppercase tracking-wider text-preto-v1 shadow-sm transition hover:brightness-95 active:scale-98"
+            >
+              <UserPlus size={16} aria-hidden />
+              Novo cliente
+            </button>
+          </div>
         </header>
 
         <section className="overflow-hidden rounded-2xl border border-[#d8dee7] bg-white shadow-sm" aria-label="Lista de clientes">
@@ -167,7 +198,63 @@ export default function GestaoClientes() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Visualização em cards no mobile (< md) */}
+              <div className="block divide-y divide-[#eef1f5] md:hidden">
+                {clientes.map((cliente) => (
+                  <article key={cliente.id} className="p-4 transition hover:bg-[#fcfdfe]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <a
+                          href={`/admin/configuracoes/clientes/${cliente.id}`}
+                          title="Ver histórico de pontos"
+                          className="font-barlow text-base font-bold text-preto-v1 underline-offset-4 transition hover:text-cinza-botao hover:underline"
+                        >
+                          {cliente.nome}
+                        </a>
+                        <div className="mt-1.5 flex flex-col gap-1 font-barlow text-xs text-cinza-base/80">
+                          <span className="flex items-center gap-1.5">
+                            <Phone size={13} className="shrink-0 text-cinza-base/60" aria-hidden />
+                            {formatarTelefone(cliente.telefone)}
+                          </span>
+                          <span className="flex items-center gap-1.5 truncate">
+                            <Mail size={13} className="shrink-0 text-cinza-base/60" aria-hidden />
+                            <span className="truncate">{cliente.email || 'Não informado'}</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amarelo/20 px-2.5 py-1 font-barlow text-xs font-bold text-preto-v1">
+                        <Award size={13} className="text-preto-v1" aria-hidden />
+                        {cliente.pontos_fidelidade} {cliente.pontos_fidelidade === 1 ? 'pt' : 'pts'}
+                      </span>
+                    </div>
+
+                    <div className="mt-3.5 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setClienteEmEdicao(cliente)}
+                        aria-label={`Editar dados de ${cliente.nome}`}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#d8dee8] bg-white py-2.5 font-barlow-condensed text-xs font-bold uppercase tracking-wider text-preto-v1 transition hover:bg-[#f7f9fc] active:scale-98"
+                      >
+                        <Pencil size={13} aria-hidden />
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setClienteEmAjustePontos(cliente)}
+                        aria-label={`Alterar pontos de ${cliente.nome}`}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#d8dee8] bg-white py-2.5 font-barlow-condensed text-xs font-bold uppercase tracking-wider text-preto-v1 transition hover:bg-[#f7f9fc] active:scale-98"
+                      >
+                        <Award size={13} aria-hidden />
+                        Pontos
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {/* Tabela clássica no desktop (>= md) */}
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-200 border-collapse text-left">
                   <thead className="bg-[#f7f9fc]">
                     <tr className="border-b border-[#e2e6ec] font-barlow text-xs font-bold uppercase tracking-wider text-cinza-base/70">
@@ -257,6 +344,13 @@ export default function GestaoClientes() {
           )}
         </section>
       </main>
+
+      {modalCadastroAberto && (
+        <ModalCadastroCliente
+          onFechar={() => setModalCadastroAberto(false)}
+          onSalvo={concluirCadastro}
+        />
+      )}
 
       {clienteEmEdicao && (
         <ModalEdicaoCliente
