@@ -9,6 +9,7 @@ export type PedidoApi = {
   cliente_id: number | null
   status: string
   forma_pagamento: FormaPagamentoApi | null
+  para_viagem?: boolean
   subtotal: string
   desconto_fidelidade: string
   total: string
@@ -82,6 +83,7 @@ export async function criarPedidoApi(data: {
   nome_comanda: string
   cliente_id: number | null
   usar_desconto_fidelidade: boolean
+  para_viagem?: boolean
   itens: ItemPedidoPayload[]
 }) {
   const response = await apiFetch('/pedidos/', {
@@ -103,22 +105,36 @@ export async function listarPedidosAbertosApi(unidadeId?: number) {
   return (await response.json()) as PedidoApi[]
 }
 
-export async function adicionarItensPedidoApi(pedidoId: number, itens: ItemPedidoPayload[]) {
+export async function adicionarItensPedidoApi(pedidoId: number, itens: ItemPedidoPayload[], paraViagem?: boolean) {
   const response = await apiFetch(`/pedidos/${pedidoId}/itens`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ itens }),
+    body: JSON.stringify({ itens, ...(paraViagem === undefined ? {} : { para_viagem: paraViagem }) }),
   })
 
   if (!response.ok) throw await erroApi(response, 'adicionar itens ao pedido')
   return (await response.json()) as PedidoApi
 }
 
-export async function finalizarPedidoApi(pedidoId: number, formaPagamento: FormaPagamentoApi) {
+export async function atualizarParaViagemPedidoApi(pedidoId: number, paraViagem: boolean) {
+  const response = await apiFetch(`/pedidos/${pedidoId}/para-viagem`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ para_viagem: paraViagem }),
+  })
+
+  if (!response.ok) throw await erroApi(response, 'atualizar modo para viagem do pedido')
+  return (await response.json()) as PedidoApi
+}
+
+export async function finalizarPedidoApi(pedidoId: number, formaPagamento: FormaPagamentoApi, paraViagem?: boolean) {
   const response = await apiFetch(`/pedidos/${pedidoId}/finalizar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ forma_pagamento: formaPagamento }),
+    body: JSON.stringify({
+      forma_pagamento: formaPagamento,
+      ...(paraViagem === undefined ? {} : { para_viagem: paraViagem }),
+    }),
   })
 
   if (!response.ok) throw await erroApi(response, 'finalizar pedido')

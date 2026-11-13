@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ChefHat, Clock3, Info, LoaderCircle, Printer, Search, Utensils, X } from 'lucide-react'
+import { ArrowLeft, ChefHat, Clock3, Info, LoaderCircle, Package, Printer, Search, Utensils, X } from 'lucide-react'
 import logoIfood from '../../imagens/social/ifood.svg'
 import BarraDeNavegacaoAdmin, { CLASSE_OFFSET_BARRA_ADMIN } from '../../componentes/administrador/BarraDeNavegacaoAdmin'
 import PedidoDetalhesModal from '../../componentes/administrador/PedidoDetalhesModal'
@@ -14,7 +14,7 @@ import { dataPedido, estadoPedido, estadosSincronizacao, horaPedido } from '../.
 type Aba = 'fila' | 'prontos' | 'cancelados'
 type Item = { nome: string; quantidade: number; adicionais: string[]; observacao?: string | null }
 type PedidoCozinha = {
-  key: string; id: number; origem: 'proprio' | 'ifood'; nome: string; lote: number; createdAt: string
+  key: string; id: number; origem: 'proprio' | 'ifood'; nome: string; paraViagem?: boolean; lote: number; createdAt: string
   status: StatusCozinha; itens: Item[]; externo?: CentralOrder
 }
 const abas: Array<{ id: Aba; nome: string; nomeCurto: string }> = [
@@ -30,7 +30,8 @@ function agrupar(items: CozinhaItem[]): PedidoCozinha[] {
   for (const item of items) {
     const key = `proprio-${item.pedido_id}-${item.lote}`
     const group = grupos.get(key) ?? { key, id: item.pedido_id, origem: 'proprio', nome: item.nome_comanda,
-      lote: item.lote, createdAt: item.created_at ?? '', status: item.status, itens: [] }
+      paraViagem: Boolean(item.para_viagem), lote: item.lote, createdAt: item.created_at ?? '', status: item.status, itens: [] }
+    if (item.para_viagem) group.paraViagem = true
     if (item.status === 'preparando') group.status = 'preparando'
     else if (item.status === 'aberto' && group.status === 'entregue') group.status = 'aberto'
     group.itens.push({ nome: [item.produto_nome, item.produto_variacao_nome?.toLowerCase() === 'unico' ? null : item.produto_variacao_nome].filter(Boolean).join(' · '), quantidade: item.quantidade, adicionais: item.adicionais.map((a) => a.nome), observacao: item.observacao })
@@ -40,7 +41,7 @@ function agrupar(items: CozinhaItem[]): PedidoCozinha[] {
 }
 function canceladosLocais(orders: PedidoApi[]): PedidoCozinha[] {
   return orders.flatMap((order) => agrupar(order.itens.map((item) => ({ ...item, pedido_id: order.id, nome_comanda: order.nome_comanda,
-    created_at: order.created_at, produto_id: 0, produto_variacao_id: 0, status: 'cancelado', observacao: item.observacao ?? null,
+    para_viagem: Boolean(order.para_viagem), created_at: order.created_at, produto_id: 0, produto_variacao_id: 0, status: 'cancelado', observacao: item.observacao ?? null,
     produto_variacao_nome: item.produto_variacao_nome ?? null }))))
 }
 function externoParaCard(order: CentralOrder): PedidoCozinha {
@@ -78,88 +79,221 @@ function CancelarRestaurante({ pedido, fechar, confirmar }: { pedido: PedidoCozi
   </dialog>
 }
 
+function LinhaObservacaoCozinha({ linha }: { linha: string }) {
+  const texto = linha.trim()
+  if (!texto) return null
+
+  if (texto.startsWith('Remover:')) {
+    return (
+      <p className="rounded-r-lg border-l-4 border-red-500 bg-red-50 px-3 py-1.5 text-sm sm:text-[15px] font-bold text-red-900">
+        {texto}
+      </p>
+    )
+  }
+  if (texto.startsWith('Maionese:') || texto.startsWith('Combo:') || texto.startsWith('Bebida do combo:')) {
+    const semValorCombo =
+      texto.startsWith('Combo:') || texto.startsWith('Bebida do combo:')
+        ? texto.replace(/\s*\(\+\s*R\$\s*[\d.,]+\)/g, '')
+        : texto
+    return (
+      <p className="rounded-r-lg border-l-4 border-slate-400 bg-slate-100/90 px-3 py-1.5 text-sm sm:text-[15px] font-semibold text-slate-800">
+        {semValorCombo}
+      </p>
+    )
+  }
+  if (texto === 'Para viagem') {
+    return (
+      <p className="inline-flex items-center gap-1.5 rounded-lg border border-amarelo bg-amarelo/25 px-3 py-1 text-sm font-extrabold uppercase tracking-wide text-slate-900">
+        <Package size={15} />
+        Embalar para viagem
+      </p>
+    )
+  }
+  return (
+    <p className="rounded-r-lg border-l-4 border-amber-500 bg-amber-50/80 px-3 py-1.5 text-sm sm:text-[15px] font-semibold leading-snug text-slate-900">
+      {texto}
+    </p>
+  )
+}
+
 function PedidoCard({ pedido, busy, detailBusy, preparar, pronto, cancelar, detalhes }: {
   pedido: PedidoCozinha; busy: boolean; detailBusy: boolean; preparar: () => void; pronto: () => void; cancelar: () => void; detalhes: () => void
 }) {
   const external = pedido.externo
   const isIfood = pedido.origem === 'ifood'
   const closed = pedido.status === 'entregue' || pedido.status === 'cancelado'
+  const emPreparo = pedido.status === 'preparando'
   const pending = external?.pending
   const canPrepare = external ? external.actions.includes('startPreparation') : pedido.status === 'aberto'
   const canReady = external ? external.actions.includes('readyToPickup') : !closed
-  const status = external ? estadoPedido(external) : pedido.status === 'preparando' ? 'Em preparo' : pedido.status === 'entregue' ? 'Entregue' : pedido.status === 'cancelado' ? 'Cancelado' : 'Na fila'
-  return <article className={`flex h-full flex-col overflow-hidden rounded-2xl border shadow-[0_2px_8px_rgba(0,0,0,0.03)] ${isIfood ? 'border-[#ea1d2c] bg-white' : pedido.status === 'preparando' ? 'border-amber-300 bg-white ring-1 ring-amber-200/60' : 'border-slate-200 bg-white'}`}>
-    <header className={`flex items-start justify-between gap-2 border-b px-4 py-3.5 ${isIfood ? 'border-[#ea1d2c] bg-[#ea1d2c] text-white' : 'border-slate-100'}`}><div className="min-w-0"><div className="mb-1 flex h-6 items-center gap-2">{pedido.origem === 'ifood' ? <img src={logoIfood} alt="iFood" className="h-7 w-11 object-contain brightness-0 invert" /> : <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400"><Utensils size={12} /> Restaurante</span>}</div><h2 className="truncate font-barlow-condensed text-xl font-bold">{pedido.nome}</h2><p className={`mt-1 text-xs ${isIfood ? 'text-white/90' : 'text-slate-400'}`}>{pedido.origem === 'proprio' && `#${pedido.id} · Lote ${pedido.lote} · `}{horaPedido(pedido.createdAt)}</p></div><div className="flex shrink-0 gap-1">{external?.payload?.items && <button type="button" aria-label={`Imprimir comanda de ${pedido.nome}`} title="Imprimir comanda" onClick={() => imprimirComanda(external)} className={`flex h-10 w-10 items-center justify-center rounded-lg transition focus-visible:outline-2 focus-visible:outline-amarelo ${isIfood ? 'text-white hover:bg-white/20' : 'text-slate-400 hover:bg-slate-100 hover:text-preto-v1'}`}><Printer size={19} /></button>}<button type="button" aria-label={`Ver detalhes de ${pedido.nome}`} title="Ver detalhes do pedido" disabled={detailBusy} onClick={detalhes} className={`flex h-10 w-10 items-center justify-center rounded-lg transition focus-visible:outline-2 focus-visible:outline-amarelo ${isIfood ? 'text-white hover:bg-white/20' : 'text-slate-400 hover:bg-slate-100 hover:text-preto-v1'}`}>{detailBusy ? <LoaderCircle size={19} className="animate-spin" /> : <Info size={19} />}</button></div></header>
-    <div className="flex-1 px-4 py-4">
-      <ul className="space-y-4">
-        {pedido.itens.map((item, i) => (
-          <li key={i}>
-            <div className="flex items-start gap-2.5">
-              <span className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded bg-slate-100 px-1 text-xs font-bold">
-                {item.quantidade}
+  const status = external ? estadoPedido(external) : emPreparo ? 'Em preparo' : pedido.status === 'entregue' ? 'Entregue' : pedido.status === 'cancelado' ? 'Cancelado' : 'Na fila'
+
+  return (
+    <article
+      className={`flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition ${
+        isIfood
+          ? 'border-[#ea1d2c]/60'
+          : emPreparo
+            ? 'border-amarelo ring-2 ring-amarelo/50'
+            : 'border-slate-200'
+      }`}
+    >
+      <header
+        className={`flex items-start justify-between gap-2 px-4 py-3.5 text-white ${
+          isIfood ? 'bg-[#d91928]' : 'bg-[#18212f]'
+        }`}
+      >
+        <div className="min-w-0">
+          <div className="mb-1.5 flex flex-wrap items-center gap-2">
+            {isIfood ? (
+              <img src={logoIfood} alt="iFood" className="h-6 w-11 object-contain brightness-0 invert" />
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-300">
+                <Utensils size={13} /> Restaurante
               </span>
-              <p className="pt-0.5 text-sm font-semibold leading-snug">{item.nome}</p>
-            </div>
-            {(item.adicionais.length > 0 || item.observacao) && (
-              <div className="mt-2 space-y-1">
-                {item.adicionais.length > 0 && (
-                  <p className="rounded-md border border-emerald-200 bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-900">
-                    Adicionais: {item.adicionais.join(', ')}
-                  </p>
-                )}
-                {item.observacao &&
-                  item.observacao.split('\n').map((linha, j) => {
-                    if (linha.startsWith('Remover:')) {
-                      return (
-                        <p
-                          key={j}
-                          className="rounded-md border border-red-200 bg-red-100 px-2.5 py-1 text-xs font-black text-red-800"
-                        >
-                          {linha}
-                        </p>
-                      )
-                    }
-                    if (linha.startsWith('Maionese:')) {
-                      return (
-                        <p
-                          key={j}
-                          className="rounded-md border border-amber-200 bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-900"
-                        >
-                          {linha}
-                        </p>
-                      )
-                    }
-                    if (linha.startsWith('Combo:')) {
-                      return (
-                        <p
-                          key={j}
-                          className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700"
-                        >
-                          {linha}
-                        </p>
-                      )
-                    }
-                    return (
-                      <p
-                        key={j}
-                        className="rounded-md bg-red-50 px-2.5 py-1.5 text-xs font-semibold leading-relaxed text-red-700"
-                      >
-                        {linha}
-                      </p>
-                    )
-                  })}
-              </div>
             )}
-          </li>
-        ))}
-      </ul>
-      {pedido.itens.length === 0 && (
-        <p className="text-xs text-slate-500">Consulte os detalhes para conferir este pedido.</p>
+            {pedido.paraViagem && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amarelo px-2.5 py-0.5 text-xs font-black uppercase tracking-wide text-preto-v1 shadow-xs">
+                <Package size={13} />
+                Para viagem
+              </span>
+            )}
+          </div>
+          <h2 className="truncate font-barlow-condensed text-[26px] sm:text-3xl font-extrabold leading-tight tracking-wide text-white">
+            {pedido.nome}
+          </h2>
+          <p className={`mt-1 text-sm sm:text-[15px] font-medium ${isIfood ? 'text-white/90' : 'text-slate-300'}`}>
+            {pedido.origem === 'proprio' && `#${pedido.id} · Lote ${pedido.lote} · `}
+            {horaPedido(pedido.createdAt)}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 gap-1">
+          {external?.payload?.items && (
+            <button
+              type="button"
+              aria-label={`Imprimir comanda de ${pedido.nome}`}
+              title="Imprimir comanda"
+              onClick={() => imprimirComanda(external)}
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-white/85 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-amarelo"
+            >
+              <Printer size={19} />
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label={`Ver detalhes de ${pedido.nome}`}
+            title="Ver detalhes do pedido"
+            disabled={detailBusy}
+            onClick={detalhes}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-white/85 transition hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-amarelo"
+          >
+            {detailBusy ? <LoaderCircle size={19} className="animate-spin" /> : <Info size={19} />}
+          </button>
+        </div>
+      </header>
+
+      <div className="flex-1 px-4 py-4">
+        <ul className="divide-y divide-slate-100">
+          {pedido.itens.map((item, i) => (
+            <li key={i} className="py-3.5 first:pt-0 last:pb-0">
+              <div className="flex items-baseline gap-2.5">
+                <span className="shrink-0 text-lg sm:text-xl font-black tabular-nums text-slate-900">
+                  {item.quantidade}×
+                </span>
+                <p className="text-lg sm:text-[19px] font-bold leading-snug text-slate-900">
+                  {item.nome}
+                </p>
+              </div>
+              {(item.adicionais.length > 0 || item.observacao) && (
+                <div className="mt-2 space-y-1.5 pl-7">
+                  {item.adicionais.length > 0 && (
+                    <p className="rounded-r-lg border-l-4 border-emerald-500 bg-emerald-50/80 px-3 py-1.5 text-sm sm:text-[15px] font-semibold text-emerald-950">
+                      Adicionais: {item.adicionais.join(', ')}
+                    </p>
+                  )}
+                  {item.observacao &&
+                    item.observacao.split('\n').map((linha, j) => (
+                      <LinhaObservacaoCozinha key={j} linha={linha} />
+                    ))}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+        {pedido.itens.length === 0 && (
+          <p className="text-sm sm:text-base text-slate-500">Consulte os detalhes para conferir este pedido.</p>
+        )}
+      </div>
+
+      <div className="px-4 pb-3.5">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold ${
+            pedido.status === 'cancelado'
+              ? 'bg-red-100 text-red-800'
+              : closed
+                ? 'bg-emerald-100 text-emerald-900'
+                : emPreparo
+                  ? 'bg-amarelo/25 text-slate-900 ring-1 ring-amarelo/70'
+                  : 'bg-slate-100 text-slate-700'
+          }`}
+        >
+          <span className="h-2 w-2 rounded-full bg-current" />
+          {status}
+        </span>
+
+        {pending && (
+          <p role="status" className="mt-2 flex items-start gap-1.5 text-xs sm:text-sm font-medium text-blue-700">
+            <Clock3 size={14} className="mt-0.5 shrink-0" />
+            {estadosSincronizacao[pending.state]}
+          </p>
+        )}
+        {external?.estado_operacional === 'PLACED' && (
+          <div className="mt-2">
+            <PrazoConfirmacao prazo={external.confirmation_deadline} agendado={external.scheduled} compacto />
+          </div>
+        )}
+        {external?.dispute && (
+          <p className="mt-2 text-xs sm:text-sm font-semibold text-red-700">
+            Negociação aberta pelo cliente. Abra os detalhes para responder.
+          </p>
+        )}
+        {external?.alerts.length && !external.dispute ? (
+          <p className="mt-2 text-xs sm:text-sm font-medium text-amber-800">
+            Há uma atualização importante nos detalhes.
+          </p>
+        ) : null}
+      </div>
+
+      {!closed && (
+        <footer className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50/80 p-3 sm:flex sm:flex-wrap">
+          <button
+            disabled={busy || !canPrepare}
+            onClick={preparar}
+            className="min-h-11 flex-1 rounded-xl bg-amarelo px-3 text-[15px] font-extrabold text-preto-v1 shadow-xs transition hover:brightness-95 active:scale-95 disabled:opacity-40"
+          >
+            Preparar
+          </button>
+          <button
+            disabled={busy || !canReady}
+            onClick={pronto}
+            className="min-h-11 flex-1 rounded-xl bg-emerald-600 px-3 text-[15px] font-extrabold text-white shadow-xs transition hover:bg-emerald-700 active:scale-95 disabled:opacity-40"
+          >
+            {pedido.origem === 'ifood' ? 'Marcar pronto' : 'Entregue'}
+          </button>
+          {pedido.origem === 'proprio' && (
+            <button
+              disabled={busy}
+              onClick={cancelar}
+              className="col-span-2 min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-[15px] font-semibold text-slate-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 active:scale-95 disabled:opacity-40 sm:col-span-1 sm:flex-none"
+            >
+              Cancelar
+            </button>
+          )}
+        </footer>
       )}
-    </div>
-    <div className="px-4 pb-3"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${pedido.status === 'cancelado' ? 'bg-red-50 text-red-700' : closed ? 'bg-emerald-50 text-emerald-700' : pedido.status === 'preparando' ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-600'}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{status}</span>{pending && <p role="status" className="mt-2 flex items-start gap-1.5 text-xs text-blue-700"><Clock3 size={13} className="shrink-0" />{estadosSincronizacao[pending.state]}</p>}{external?.estado_operacional === 'PLACED' && <div className="mt-2"><PrazoConfirmacao prazo={external.confirmation_deadline} agendado={external.scheduled} compacto /></div>}{external?.dispute && <p className="mt-2 text-xs font-semibold text-red-700">Negociação aberta pelo cliente. Abra os detalhes para responder.</p>}{external?.alerts.length && !external.dispute ? <p className="mt-2 text-xs text-amber-800">Há uma atualização importante nos detalhes.</p> : null}</div>
-    {!closed && <footer className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50/60 p-3 sm:flex sm:flex-wrap"><button disabled={busy || !canPrepare} onClick={preparar} className="min-h-11 flex-1 rounded-lg border border-amber-200 bg-amarelo/20 px-2 text-xs font-bold disabled:opacity-40 transition active:scale-95">Preparar</button><button disabled={busy || !canReady} onClick={pronto} className="min-h-11 flex-1 rounded-lg bg-emerald-600 px-2 text-xs font-bold text-white disabled:opacity-40 transition active:scale-95">{pedido.origem === 'ifood' ? 'Marcar pronto' : 'Entregue'}</button>{pedido.origem === 'proprio' && <button disabled={busy} onClick={cancelar} className="col-span-2 min-h-11 rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 disabled:opacity-40 transition active:scale-95 sm:col-span-1 sm:flex-none hover:bg-red-50">Cancelar</button>}</footer>}
-  </article>
+    </article>
+  )
 }
 
 export default function Cozinha() {
