@@ -8,6 +8,7 @@ import {
   CircleDollarSign,
   CreditCard,
   Minus,
+  Package,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -32,6 +33,7 @@ import {
   adicionarItensPedidoApi,
   aumentarQuantidadeItemPedidoApi,
   atualizarObservacaoItemPedidoApi,
+  atualizarParaViagemPedidoApi,
   cancelarItemPedidoApi,
   criarPedidoApi,
   finalizarPedidoApi,
@@ -152,6 +154,23 @@ const SABORES_SODA_ITALIANA = [
 
 const SABORES_PRATS = ['Laranja Integral', 'Uva Integral']
 const VALOR_DESCONTO_FIDELIDADE = 17
+const MARCADOR_VIAGEM = 'Para viagem'
+
+function itemEhParaViagem(observacao?: string | null): boolean {
+  return Boolean(observacao?.split('\n').some((linha) => linha.trim() === MARCADOR_VIAGEM))
+}
+
+function alternarMarcadorViagem(observacao?: string | null, ativar?: boolean): string | null {
+  const linhas = (observacao ?? '')
+    .split('\n')
+    .map((linha) => linha.trim())
+    .filter((linha) => linha && linha !== MARCADOR_VIAGEM)
+  const deveAtivar = ativar ?? !itemEhParaViagem(observacao)
+  if (deveAtivar) {
+    linhas.push(MARCADOR_VIAGEM)
+  }
+  return linhas.join('\n') || null
+}
 
 const pagamentos = [
   { id: 'pix', label: 'Pix', icon: <QrCode size={14} /> },
@@ -225,6 +244,7 @@ export default function AnotarPedidos() {
   const [pedidoAbertoId, setPedidoAbertoId] = useState<number | null>(null)
   const [resumoKey, setResumoKey] = useState(0)
   const [usarDescontoFidelidade, setUsarDescontoFidelidade] = useState(false)
+  const [paraViagem, setParaViagem] = useState(false)
   const [modalFidelidadeAberto, setModalFidelidadeAberto] = useState(false)
   const [resumoVisivel, setResumoVisivel] = useState(false)
 
@@ -406,6 +426,32 @@ export default function AnotarPedidos() {
     setPedido((atual) => atual.map((item) => item.id === id ? { ...item, quantidade } : item))
   }
 
+  function alternarViagemItem(id: string) {
+    setPedido((atual) => {
+      const alvo = atual.find((item) => item.id === id)
+      if (!alvo) return atual
+      const proximoViagem = !itemEhParaViagem(alvo.observacao)
+      const baseId = alvo.id.replace(/:viagem$/, '')
+      const novoId = proximoViagem ? `${baseId}:viagem` : baseId
+      const novaObs = alternarMarcadorViagem(alvo.observacao, proximoViagem)
+      const existente = atual.find((item) => item.id === novoId && item.id !== id)
+
+      if (existente) {
+        return atual
+          .filter((item) => item.id !== id)
+          .map((item) =>
+            item.id === novoId
+              ? { ...item, quantidade: item.quantidade + alvo.quantidade }
+              : item,
+          )
+      }
+
+      return atual.map((item) =>
+        item.id === id ? { ...item, id: novoId, observacao: novaObs } : item,
+      )
+    })
+  }
+
   async function carregarPedidosAbertos(idUnidade: number) {
     try {
       const pedidos = await listarPedidosAbertosApi(idUnidade)
@@ -473,21 +519,36 @@ export default function AnotarPedidos() {
     return true
   }
 
+  async function alternarParaViagem(valor: boolean) {
+    const anterior = paraViagem
+    setParaViagem(valor)
+    if (!pedidoAbertoId || !unidadeId) return
+    try {
+      await atualizarParaViagemPedidoApi(pedidoAbertoId, valor)
+      await carregarPedidosAbertos(unidadeId)
+    } catch (error) {
+      setParaViagem(anterior)
+      setMensagemPedido(error instanceof Error ? error.message : 'Não foi possível atualizar o modo para viagem.')
+    }
+  }
+
   async function salvarPedidoAberto() {
     if (finalizando || !validarPedido(true) || !unidadeId) return
 
     setFinalizando(true)
     try {
       const salvo = pedidoAbertoId
-        ? await adicionarItensPedidoApi(pedidoAbertoId, itensPedidoPayload())
+        ? await adicionarItensPedidoApi(pedidoAbertoId, itensPedidoPayload(), paraViagem)
         : await criarPedidoApi({
             unidade_id: unidadeId,
             nome_comanda: nomeComanda.trim(),
             cliente_id: clientePedido?.id ?? null,
             usar_desconto_fidelidade: usarDescontoFidelidade,
+            para_viagem: paraViagem,
             itens: itensPedidoPayload(),
           })
       setPedidoAbertoId(salvo.id)
+      setParaViagem(Boolean(salvo.para_viagem))
       setPedido([])
       confirmarPedido(`Pedido #${salvo.id} mantido aberto e enviado para a cozinha.`)
       await carregarPedidosAbertos(unidadeId)
@@ -542,7 +603,7 @@ export default function AnotarPedidos() {
         return
       }
       if (idParaFinalizar && pedido.length) {
-        await adicionarItensPedidoApi(idParaFinalizar, itensPedidoPayload())
+        await adicionarItensPedidoApi(idParaFinalizar, itensPedidoPayload(), paraViagem)
       }
       if (!idParaFinalizar) {
         const criado = await criarPedidoApi({
@@ -550,12 +611,13 @@ export default function AnotarPedidos() {
           nome_comanda: nomeComanda.trim(),
           cliente_id: clientePedido?.id ?? null,
           usar_desconto_fidelidade: usarDescontoFidelidade,
+          para_viagem: paraViagem,
           itens: itensPedidoPayload(),
         })
         idParaFinalizar = criado.id
       }
 
-      const finalizado = await finalizarPedidoApi(idParaFinalizar, pagamento as FormaPagamentoApi)
+      const finalizado = await finalizarPedidoApi(idParaFinalizar, pagamento as FormaPagamentoApi, paraViagem)
       setPedido([])
       setPedidoAbertoId(null)
       setNomeComanda('')
@@ -563,6 +625,7 @@ export default function AnotarPedidos() {
       setPagamento('pix')
       setFidelidade('sem-cadastro')
       setUsarDescontoFidelidade(false)
+      setParaViagem(false)
       setResumoKey((valor) => valor + 1)
       confirmarPedido(`Pedido #${finalizado.id} finalizado e enviado para a cozinha.`)
       await carregarPedidosAbertos(unidadeId)
@@ -578,6 +641,7 @@ export default function AnotarPedidos() {
     setPedido([])
     setMensagemPedido('')
     setComandaInvalida(false)
+    setParaViagem(false)
     if (!id) {
       setNomeComanda('')
       setClientePedido(null)
@@ -591,6 +655,7 @@ export default function AnotarPedidos() {
       setNomeComanda(pedidoAberto.nome_comanda)
       setUsarDescontoFidelidade(pedidoAberto.pontos_fidelidade_utilizados > 0)
       setPagamento(pedidoAberto.forma_pagamento ?? 'pix')
+      setParaViagem(Boolean(pedidoAberto.para_viagem))
     }
   }
 
@@ -693,8 +758,15 @@ export default function AnotarPedidos() {
                     <p className="mt-1.5 truncate text-xs font-semibold text-slate-700">
                       {pedidoItem.nome_comanda || 'Sem nome'}
                     </p>
-                    <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
-                      <span>{totalItensPedido} {totalItensPedido === 1 ? 'item' : 'itens'}</span>
+                    <div className="mt-2 flex items-center justify-between gap-1 text-[10px] text-slate-400">
+                      <span className="inline-flex items-center gap-1.5">
+                        {totalItensPedido} {totalItensPedido === 1 ? 'item' : 'itens'}
+                        {pedidoItem.para_viagem && (
+                          <span className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-900">
+                            <Package size={9} /> Viagem
+                          </span>
+                        )}
+                      </span>
                       <strong className="text-slate-700">{moeda(Number(pedidoItem.total))}</strong>
                     </div>
                   </button>
@@ -940,6 +1012,7 @@ export default function AnotarPedidos() {
           pedidoEmPreparo={pedidoEmPreparo}
           pedidoAbertoId={pedidoAbertoId}
           usarDescontoFidelidade={usarDescontoFidelidade}
+          paraViagem={paraViagem}
           finalizando={finalizando}
           editandoItemId={editandoItemId}
           mensagemPedido={mensagemPedido}
@@ -952,9 +1025,11 @@ export default function AnotarPedidos() {
           clientePedido={clientePedido}
           onCliente={setClientePedido}
           onUsarDesconto={setUsarDescontoFidelidade}
+          onParaViagem={alternarParaViagem}
           onAbrirFidelidade={() => setModalFidelidadeAberto(true)}
           onPagamento={setPagamento}
           onQuantidade={alterarQuantidade}
+          onAlternarViagemItem={alternarViagemItem}
           onEditarItemRegistrado={editarItemRegistrado}
           onAtualizarObservacao={atualizarObservacaoItemRegistrado}
           onSalvarAberto={salvarPedidoAberto}
@@ -1196,6 +1271,7 @@ function ModalConfiguracao({
   const [saborSelecionado, setSaborSelecionado] = useState<string>('')
   const [saborBebidaCombo, setSaborBebidaCombo] = useState<string>('')
   const [observacao, setObservacao] = useState('')
+  const [paraViagemItem, setParaViagemItem] = useState(false)
   const [adicionaisSelecionados, setAdicionaisSelecionados] = useState<number[]>([])
   const combo = comboEscolha === true
   const precoIndividual = variacao?.preco ?? produto.preco
@@ -1270,6 +1346,9 @@ function ModalConfiguracao({
     if (observacao.trim()) {
       linhasObs.push(`Obs: ${observacao.trim()}`)
     }
+    if (paraViagemItem) {
+      linhasObs.push(MARCADOR_VIAGEM)
+    }
 
     const bebidaTextoCombo = saborBebidaCombo ? `${bebida.nome} (${saborBebidaCombo})` : bebida.nome
     const nomeComSabor = saborSelecionado ? `${nomeBase} (${saborSelecionado})` : nomeBase
@@ -1287,6 +1366,7 @@ function ModalConfiguracao({
         idRemocoes ? `r:${idRemocoes}` : '',
         idAdicionais ? `a:${idAdicionais}` : '',
         idObservacao ? `o:${idObservacao}` : '',
+        paraViagemItem ? 'viagem' : '',
       ].filter(Boolean).join(':'),
       nome: combo ? `Combo ${nomeBase}` : nomeComSabor,
       descricao: combo ? `${descricaoBase} | ${acompanhamento.nome} + ${bebidaTextoCombo}` : (saborSelecionado ? `${descricaoBase} (${saborSelecionado})` : descricaoBase),
@@ -1505,7 +1585,25 @@ function ModalConfiguracao({
 
           {/* 6. Observações */}
           <section>
-            <div><h3 className="text-sm font-black">Alguma observação?</h3><p className="mt-0.5 text-xs text-slate-400">Opcional. Aparece para a cozinha.</p></div>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-black">Alguma observação?</h3>
+                <p className="mt-0.5 text-xs text-slate-400">Opcional. Aparece para a cozinha.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setParaViagemItem((v) => !v)}
+                aria-pressed={paraViagemItem}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                  paraViagemItem
+                    ? 'border-amber-500 bg-amber-100 text-amber-950 shadow-sm ring-1 ring-amber-400/50'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-amber-300 hover:bg-amber-50/50 hover:text-amber-900'
+                }`}
+              >
+                <Package size={14} />
+                Para viagem
+              </button>
+            </div>
             <textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Ex: carne bem passada, pouco sal, cortar ao meio..." maxLength={200} rows={3} className="mt-3 w-full resize-none rounded-xl border border-slate-200 p-3 text-base sm:text-sm placeholder:text-slate-300 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400" />
           </section>
         </div>
@@ -1951,6 +2049,9 @@ function ResumoPedido({
   nomeComanda,
   comandaInvalida,
   onNomeComanda,
+  paraViagem,
+  onParaViagem,
+  onAlternarViagemItem,
   clientePedido,
   onCliente,
   onUsarDesconto,
@@ -1978,6 +2079,9 @@ function ResumoPedido({
   nomeComanda: string
   comandaInvalida?: boolean
   onNomeComanda: (nome: string) => void
+  paraViagem: boolean
+  onParaViagem: (valor: boolean) => void
+  onAlternarViagemItem: (id: string) => void
   clientePedido: ClienteVinculado | null
   onCliente: (cliente: ClienteVinculado | null) => void
   onUsarDesconto: (usar: boolean) => void
@@ -2034,24 +2138,40 @@ function ResumoPedido({
 
       {/* Dados do Ticket Fixo: Comanda e Cliente Fidelidade */}
       <div className="border-b border-slate-200/80 bg-slate-50/70 p-2.5 sm:p-3 lg:shrink-0">
-        <div className="relative">
-          <input
-            id="comanda-ticket"
-            value={nomeComanda}
-            onChange={(e) => onNomeComanda(e.target.value)}
-            disabled={Boolean(pedidoAbertoId)}
-            placeholder="Nome da Comanda"
-            className={`h-8.5 w-full rounded-lg border px-3 text-xs font-bold outline-none transition disabled:bg-slate-100 disabled:text-slate-500 ${
-              comandaInvalida
-                ? 'border-red-500 bg-red-50/40 text-red-900 ring-2 ring-red-400/50 placeholder:text-red-400'
-                : 'border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-400'
+        <div className="flex items-center gap-1.5">
+          <div className="relative flex-1">
+            <input
+              id="comanda-ticket"
+              value={nomeComanda}
+              onChange={(e) => onNomeComanda(e.target.value)}
+              disabled={Boolean(pedidoAbertoId)}
+              placeholder="Nome da Comanda"
+              className={`h-8.5 w-full rounded-lg border px-3 text-xs font-bold outline-none transition disabled:bg-slate-100 disabled:text-slate-500 ${
+                comandaInvalida
+                  ? 'border-red-500 bg-red-50/40 text-red-900 ring-2 ring-red-400/50 placeholder:text-red-400'
+                  : 'border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-400'
+              }`}
+            />
+            {pedidoAbertoId && (
+              <span className="absolute right-2 top-1.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">
+                #{pedidoAbertoId}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => onParaViagem(!paraViagem)}
+            aria-pressed={paraViagem}
+            title="Marcar pedido inteiro para viagem"
+            className={`inline-flex h-8.5 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold transition ${
+              paraViagem
+                ? 'border-amber-500 bg-amber-100 text-amber-950 shadow-sm ring-1 ring-amber-400/50'
+                : 'border-slate-200 bg-white text-slate-600 hover:border-amber-300 hover:bg-amber-50/60 hover:text-amber-900'
             }`}
-          />
-          {pedidoAbertoId && (
-            <span className="absolute right-2 top-1.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">
-              #{pedidoAbertoId}
-            </span>
-          )}
+          >
+            <Package size={13} />
+            <span>Para viagem</span>
+          </button>
         </div>
         {comandaInvalida && (
           <p className="mt-1 text-[11px] font-bold text-red-600">
@@ -2183,8 +2303,9 @@ function ResumoPedido({
                                 const maioneseParte = partes.find((l) => l.startsWith('Maionese:')) ?? null
                                 const comboParte = partes.find((l) => l.startsWith('Combo:') || l.startsWith('Bebida do combo:')) ?? null
                                 const remocaoParte = partes.find((l) => l.startsWith('Remover:')) ?? null
+                                const viagemParte = partes.find((l) => l.trim() === MARCADOR_VIAGEM) ?? null
                                 const obsLimpa = obsEditando.texto.trim()
-                                const novaObs = [maioneseParte, comboParte, remocaoParte, obsLimpa ? `Obs: ${obsLimpa}` : null].filter(Boolean).join('\n') || null
+                                const novaObs = [maioneseParte, comboParte, remocaoParte, viagemParte, obsLimpa ? `Obs: ${obsLimpa}` : null].filter(Boolean).join('\n') || null
                                 await onAtualizarObservacao(item.id, novaObs)
                                 setObsEditando(null)
                                 setSalvandoObs(false)
@@ -2227,13 +2348,12 @@ function ResumoPedido({
                 <div className="flex justify-between gap-3">
                   <div>
                     <p className="text-sm font-bold">{item.nome}</p>
-                    <p className="mt-1 text-[10px] leading-4 text-slate-400">{item.descricao}</p>
                     {item.adicionais && item.adicionais.length > 0 && (
                       <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">
                         + {item.adicionais.map((adicional) => adicional.nome).join(', ')}
                       </p>
                     )}
-                    <LinhasObservacao observacao={item.observacao} />
+                    <LinhasObservacao observacao={item.observacao} ocultarViagem />
                     <p className="mt-1 text-xs text-slate-400">{moeda(item.preco)} cada</p>
                   </div>
                   <button
@@ -2275,6 +2395,22 @@ function ResumoPedido({
                       <Plus size={13} />
                     </button>
                   </div>
+                  {!paraViagem && (
+                    <button
+                      type="button"
+                      onClick={() => onAlternarViagemItem(item.id)}
+                      aria-pressed={itemEhParaViagem(item.observacao)}
+                      title="Marcar este item para viagem"
+                      className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-bold transition ${
+                        itemEhParaViagem(item.observacao)
+                          ? 'border-amber-400 bg-amber-100 text-amber-950'
+                          : 'border-slate-200 bg-white text-slate-500 hover:border-amber-300 hover:text-amber-900'
+                      }`}
+                    >
+                      <Package size={11} />
+                      Viagem
+                    </button>
+                  )}
                   <strong className="text-sm">{moeda(item.preco * item.quantidade)}</strong>
                 </div>
               </div>
@@ -2436,7 +2572,13 @@ function formatarItemPedido(produto: string, variacao: string | null) {
   return `${nomeProduto} - ${variacao}`
 }
 
-function LinhasObservacao({ observacao }: { observacao: string | null | undefined }) {
+function LinhasObservacao({
+  observacao,
+  ocultarViagem = false,
+}: {
+  observacao: string | null | undefined
+  ocultarViagem?: boolean
+}) {
   if (!observacao) return null
   return (
     <>
@@ -2460,6 +2602,18 @@ function LinhasObservacao({ observacao }: { observacao: string | null | undefine
             <p key={i} className="mt-0.5 text-[10px] font-semibold text-slate-500">
               {linha}
             </p>
+          )
+        }
+        if (linha.trim() === MARCADOR_VIAGEM) {
+          if (ocultarViagem) return null
+          return (
+            <span
+              key={i}
+              className="mt-1 inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-900"
+            >
+              <Package size={10} />
+              Para viagem
+            </span>
           )
         }
         return (

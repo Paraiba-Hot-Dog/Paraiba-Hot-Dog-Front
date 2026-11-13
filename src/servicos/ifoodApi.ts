@@ -15,7 +15,7 @@ export type ExternalPayload = {
   total?: string | { subTotal?: number; deliveryFee?: number; benefits?: number; additionalFees?: number; orderAmount?: number }
   subtotal?: string; desconto_fidelidade?: string
   itens?: Array<{ produto_nome: string; produto_variacao_nome?: string; preco_unitario?: string; status?: string; quantidade: number; observacao?: string; adicionais?: Array<{ nome: string; preco: string }> }>
-  status?: string; forma_pagamento?: string | null
+  status?: string; forma_pagamento?: string | null; para_viagem?: boolean
 }
 export type CentralOrder = {
   id: number; origem: 'proprio' | 'ifood'; unidade_id: number; nome: string

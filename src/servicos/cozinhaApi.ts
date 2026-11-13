@@ -6,6 +6,7 @@ export type CozinhaItem = {
   created_at?: string | null
   pedido_id: number
   nome_comanda: string
+  para_viagem?: boolean
   lote: number
   produto_variacao_id: number
   produto_id: number
@@ -24,6 +25,7 @@ export type CozinhaItem = {
 export type PedidoApi = {
   id: number
   nome_comanda: string
+  para_viagem?: boolean
   status: 'aberto' | 'pago' | 'cancelado'
   created_at: string
   itens: Array<{
