@@ -71,6 +71,8 @@ type OpcaoItemCombo = {
   id: string
   nome: string
   precoAdicional: number
+  produtoId?: number
+  disponivelNoCombo?: boolean
 }
 
 type Produto = {
@@ -96,6 +98,7 @@ type ItemPedido = {
   produtoVariacaoId?: number
   observacao?: string | null
   adicionais?: AdicionalProduto[]
+  comboProdutoIds?: number[]
 }
 
 type ClienteVinculado = {
@@ -183,17 +186,22 @@ function moeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+function converterDataUtc(dataIso?: string | null): Date | null {
+  if (!dataIso) return null
+  const normalizada = /[zZ]|[+-]\d{2}:?\d{2}$/.test(dataIso) ? dataIso : `${dataIso}Z`
+  const data = new Date(normalizada)
+  return isNaN(data.getTime()) ? null : data
+}
+
 function formatarHora(dataIso?: string | null): string {
-  if (!dataIso) return ''
-  const d = new Date(dataIso)
-  if (isNaN(d.getTime())) return ''
+  const d = converterDataUtc(dataIso)
+  if (!d) return ''
   return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
 function ehPedidoDeHoje(dataIso?: string | null): boolean {
-  if (!dataIso) return true
-  const d = new Date(dataIso)
-  if (isNaN(d.getTime())) return true
+  const d = converterDataUtc(dataIso)
+  if (!d) return true
   const hoje = new Date()
   return (
     d.getDate() === hoje.getDate() &&
@@ -346,9 +354,8 @@ export default function AnotarPedidos() {
   const totalAtual = Number(pedidoSelecionado?.total ?? 0)
   const isPago = pedidoSelecionado?.status === 'pago'
   const totalParaFinalizar = isPago
-    ? Math.max(subtotal - descontoNovo, 0)
+    ? totalAtual
     : Math.max(totalAtual + subtotal - descontoNovo, 0)
-  const pedidoJaPagoSemNovosItens = Boolean(pedidoAbertoId && isPago && pedido.length === 0)
   const totalNovosItens = pedido.reduce((total, item) => total + item.quantidade, 0)
   const totalRegistrados = itensRegistrados.reduce((total, item) => total + item.quantidade, 0)
   const totalItens = totalNovosItens + totalRegistrados
@@ -390,6 +397,10 @@ export default function AnotarPedidos() {
   }, [busca, cardapio, categoriaAtiva])
 
   function adicionar(produto: Produto) {
+    if (isPago) {
+      setMensagemPedido('Este pedido já está pago e não pode ser alterado. Clique em "Iniciar novo pedido".')
+      return
+    }
     const temOpcoes =
       (produto.variacoes && produto.variacoes.length > 1) ||
       produto.permiteCombo ||
@@ -482,6 +493,7 @@ export default function AnotarPedidos() {
       quantidade: item.quantidade,
       observacao: item.observacao ?? null,
       adicional_ids: item.adicionais?.map((adicional) => adicional.id) ?? [],
+      combo_produto_ids: item.comboProdutoIds ?? [],
       produto_nome: item.nome ?? null,
     }))
   }
@@ -534,6 +546,10 @@ export default function AnotarPedidos() {
 
   async function salvarPedidoAberto() {
     if (finalizando || !validarPedido(true) || !unidadeId) return
+    if (isPago) {
+      setMensagemPedido('Este pedido já está pago e não pode ser alterado.')
+      return
+    }
 
     setFinalizando(true)
     try {
@@ -595,15 +611,18 @@ export default function AnotarPedidos() {
     if (finalizando || !validarPedido(exigeItens) || !unidadeId) return
 
     setFinalizando(true)
+    let pedidoPersistido = false
     try {
       let idParaFinalizar = pedidoAbertoId
-      const pedidoSelecionado = pedidosAbertos.find((item) => item.id === pedidoAbertoId)
-      if (pedidoSelecionado?.status === 'pago' && !pedido.length) {
-        setMensagemPedido(`O pedido #${pedidoSelecionado.id} já está pago e aguarda entrega da cozinha.`)
+      const pedidoSelecionadoAtual = pedidosAbertos.find((item) => item.id === pedidoAbertoId)
+      if (pedidoSelecionadoAtual?.status === 'pago') {
+        setMensagemPedido(`O pedido #${pedidoSelecionadoAtual.id} já está pago e não pode ser alterado.`)
         return
       }
       if (idParaFinalizar && pedido.length) {
         await adicionarItensPedidoApi(idParaFinalizar, itensPedidoPayload(), paraViagem)
+        pedidoPersistido = true
+        setPedido([])
       }
       if (!idParaFinalizar) {
         const criado = await criarPedidoApi({
@@ -615,6 +634,9 @@ export default function AnotarPedidos() {
           itens: itensPedidoPayload(),
         })
         idParaFinalizar = criado.id
+        pedidoPersistido = true
+        setPedidoAbertoId(criado.id)
+        setPedido([])
       }
 
       const finalizado = await finalizarPedidoApi(idParaFinalizar, pagamento as FormaPagamentoApi, paraViagem)
@@ -630,6 +652,9 @@ export default function AnotarPedidos() {
       confirmarPedido(`Pedido #${finalizado.id} finalizado e enviado para a cozinha.`)
       await carregarPedidosAbertos(unidadeId)
     } catch (error) {
+      if (pedidoPersistido) {
+        await carregarPedidosAbertos(unidadeId)
+      }
       setMensagemPedido(error instanceof Error ? error.message : 'Não foi possível finalizar o pedido.')
     } finally {
       setFinalizando(false)
@@ -732,7 +757,9 @@ export default function AnotarPedidos() {
                 </div>
               ) : pedidosAbertos.map((pedidoItem) => {
                 const tag = tagStatusPedido(pedidoItem)
-                const totalItensPedido = pedidoItem.itens.reduce((total, item) => total + item.quantidade, 0)
+                const totalItensPedido = pedidoItem.itens
+                  .filter((item) => item.status !== 'cancelado')
+                  .reduce((total, item) => total + item.quantidade, 0)
                 const hora = formatarHora(pedidoItem.created_at)
 
                 return (
@@ -1069,7 +1096,7 @@ export default function AnotarPedidos() {
                 )}
               </p>
               <p className="truncate text-base font-black text-preto-v1">
-                {pedidoJaPagoSemNovosItens ? `Pago · ${moeda(totalAtual)}` : moeda(totalParaFinalizar)}
+                {isPago ? `Pago · ${moeda(totalAtual)}` : moeda(totalParaFinalizar)}
               </p>
             </div>
             <button
@@ -1279,14 +1306,18 @@ function ModalConfiguracao({
   const totalAdicionais = adicionaisEscolhidos.reduce((total, adicional) => total + adicional.preco, 0)
   const adicionalAcomp = combo ? acompanhamento.precoAdicional : 0
   const adicionalBebida = combo ? bebida.precoAdicional : 0
-  const adicionalSabor = useMemo(() => {
-    if (!saborSelecionado) return 0
+  const opcaoSaborSelecionada = useMemo(() => {
+    if (!saborSelecionado) return null
     for (const g of gruposEspeciais) {
       const match = g.opcoes?.find((o) => o.nome === saborSelecionado)
-      if (match && Number(match.preco) > 0) return Number(match.preco)
+      if (match) return match
     }
-    return 0
+    return null
   }, [gruposEspeciais, saborSelecionado])
+  const adicionalSabor =
+    opcaoSaborSelecionada && Number(opcaoSaborSelecionada.preco) > 0
+      ? Number(opcaoSaborSelecionada.preco)
+      : 0
   const precoFinal =
     (combo ? (variacao?.precoCombo ?? precoIndividual) : precoIndividual) +
     totalAdicionais +
@@ -1352,6 +1383,17 @@ function ModalConfiguracao({
 
     const bebidaTextoCombo = saborBebidaCombo ? `${bebida.nome} (${saborBebidaCombo})` : bebida.nome
     const nomeComSabor = saborSelecionado ? `${nomeBase} (${saborSelecionado})` : nomeBase
+    const adicionaisParaEnviar: AdicionalProduto[] = [
+      ...adicionaisEscolhidos,
+      ...(opcaoSaborSelecionada && Number(opcaoSaborSelecionada.preco) > 0
+        ? [{ id: opcaoSaborSelecionada.id, nome: opcaoSaborSelecionada.nome, preco: Number(opcaoSaborSelecionada.preco) }]
+        : []),
+    ]
+    const comboProdutoIds = combo
+      ? [acompanhamento, bebida]
+          .filter((itemCombo) => itemCombo.disponivelNoCombo && typeof itemCombo.produtoId === 'number')
+          .map((itemCombo) => itemCombo.produtoId as number)
+      : undefined
 
     onAdicionar({
       id: [
@@ -1375,7 +1417,8 @@ function ModalConfiguracao({
       produtoVariacaoId: combo
         ? variacao?.produtoVariacaoComboId ?? variacao?.produtoVariacaoId
         : variacao?.produtoVariacaoId,
-      adicionais: adicionaisEscolhidos.length ? adicionaisEscolhidos : undefined,
+      adicionais: adicionaisParaEnviar.length ? adicionaisParaEnviar : undefined,
+      comboProdutoIds: comboProdutoIds?.length ? comboProdutoIds : undefined,
     })
   }
 
@@ -2114,7 +2157,6 @@ function ResumoPedido({
   }
 
   const isPago = pedidoSelecionado?.status === 'pago'
-  const visualizandoPagoSemNovosItens = Boolean(pedidoAbertoId && isPago && pedido.length === 0)
   const descontoExistente = Number(pedidoSelecionado?.desconto_fidelidade ?? 0)
   const descontoNovo = !pedidoAbertoId && usarDescontoFidelidade
     ? Math.min(VALOR_DESCONTO_FIDELIDADE, subtotal)
@@ -2122,7 +2164,7 @@ function ResumoPedido({
   const descontoExibido = descontoExistente || descontoNovo
   const totalAtual = Number(pedidoSelecionado?.total ?? 0)
   const totalParaFinalizar = isPago
-    ? Math.max(subtotal - descontoNovo, 0)
+    ? totalAtual
     : Math.max(totalAtual + subtotal - descontoNovo, 0)
 
   return (
@@ -2160,10 +2202,11 @@ function ResumoPedido({
           </div>
           <button
             type="button"
+            disabled={isPago}
             onClick={() => onParaViagem(!paraViagem)}
             aria-pressed={paraViagem}
-            title="Marcar pedido inteiro para viagem"
-            className={`inline-flex h-8.5 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold transition ${
+            title={isPago ? 'Pedido já pago (somente leitura)' : 'Marcar pedido inteiro para viagem'}
+            className={`inline-flex h-8.5 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${
               paraViagem
                 ? 'border-amber-500 bg-amber-100 text-amber-950 shadow-sm ring-1 ring-amber-400/50'
                 : 'border-slate-200 bg-white text-slate-600 hover:border-amber-300 hover:bg-amber-50/60 hover:text-amber-900'
@@ -2189,23 +2232,26 @@ function ResumoPedido({
                   {clientePedido.pontos} pts
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  onCliente(null)
-                  onUsarDesconto(false)
-                }}
-                className="text-slate-400 hover:text-red-600 shrink-0 ml-1.5 p-0.5"
-                title="Desvincular cliente"
-              >
-                <X size={13} />
-              </button>
+              {!isPago && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCliente(null)
+                    onUsarDesconto(false)
+                  }}
+                  className="text-slate-400 hover:text-red-600 shrink-0 ml-1.5 p-0.5"
+                  title="Desvincular cliente"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
           ) : (
             <button
               type="button"
+              disabled={isPago}
               onClick={onAbrirFidelidade}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition active:scale-95"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <UserPlus size={13} className="text-slate-400" />
               <span>+ Cliente fidelidade</span>
@@ -2238,7 +2284,7 @@ function ResumoPedido({
                     <span className={`rounded-full px-2 py-1 text-[8px] font-black uppercase ${item.status === 'entregue' ? 'bg-emerald-100 text-emerald-700' : item.status === 'preparando' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{item.status}</span>
                   </div>
                   <div className="mt-3 flex items-center justify-between">
-                    {item.status === 'aberto' && !pedidoEmPreparo ? (
+                    {!isPago && item.status === 'aberto' && !pedidoEmPreparo ? (
                       <div className="flex items-center gap-2">
                         <div className="flex items-center overflow-hidden rounded-lg border border-slate-200 bg-white">
                           <button
@@ -2278,10 +2324,10 @@ function ResumoPedido({
                           <Trash2 size={14} />
                         </button>
                       </div>
-                    ) : <span className="text-[9px] font-semibold text-slate-400">Edicao bloqueada pela cozinha</span>}
+                    ) : <span className="text-[9px] font-semibold text-slate-400">{isPago ? 'Pedido já pago' : 'Edicao bloqueada pela cozinha'}</span>}
                     <p className="text-right text-xs font-bold">{moeda((Number(item.preco_unitario) + item.adicionais.reduce((total, adicional) => total + Number(adicional.preco), 0)) * item.quantidade)}</p>
                   </div>
-                  {item.status === 'aberto' && !pedidoEmPreparo && (
+                  {!isPago && item.status === 'aberto' && !pedidoEmPreparo && (
                     <div className="mt-2 border-t border-slate-100 pt-2">
                       {obsEditando?.itemId === item.id ? (
                         <div>
@@ -2302,10 +2348,11 @@ function ResumoPedido({
                                 const partes = item.observacao?.split('\n') ?? []
                                 const maioneseParte = partes.find((l) => l.startsWith('Maionese:')) ?? null
                                 const comboParte = partes.find((l) => l.startsWith('Combo:') || l.startsWith('Bebida do combo:')) ?? null
+                                const saborParte = partes.find((l) => l.startsWith('Sabor:')) ?? null
                                 const remocaoParte = partes.find((l) => l.startsWith('Remover:')) ?? null
                                 const viagemParte = partes.find((l) => l.trim() === MARCADOR_VIAGEM) ?? null
                                 const obsLimpa = obsEditando.texto.trim()
-                                const novaObs = [maioneseParte, comboParte, remocaoParte, viagemParte, obsLimpa ? `Obs: ${obsLimpa}` : null].filter(Boolean).join('\n') || null
+                                const novaObs = [maioneseParte, comboParte, saborParte, remocaoParte, viagemParte, obsLimpa ? `Obs: ${obsLimpa}` : null].filter(Boolean).join('\n') || null
                                 await onAtualizarObservacao(item.id, novaObs)
                                 setObsEditando(null)
                                 setSalvandoObs(false)
@@ -2420,7 +2467,7 @@ function ResumoPedido({
       </div>
 
       <div className="border-t border-slate-200 bg-[#f8faff] p-2.5 sm:p-3 lg:shrink-0">
-        {visualizandoPagoSemNovosItens ? (
+        {isPago ? (
           <div>
             <div className="space-y-1 text-xs text-slate-500">
               <div className="flex items-center justify-between">
@@ -2443,10 +2490,10 @@ function ResumoPedido({
 
             <div className="mt-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-2 text-center">
               <p className="text-xs font-bold text-emerald-800">
-                Pedido quitado • Aguarda cozinha
+                Pedido quitado • Somente leitura
               </p>
               <p className="mt-0.5 text-[10px] text-emerald-700">
-                Para incluir mais produtos nesta comanda, escolha no cardápio.
+                Pedidos pagos não podem ser alterados. Para lançar novos itens, inicie outro pedido.
               </p>
             </div>
 
@@ -2467,30 +2514,15 @@ function ResumoPedido({
         ) : (
           <div>
             <div className="space-y-1 text-xs text-slate-500">
-              {isPago ? (
-                <>
-                  <div className="flex justify-between">
-                    <span>Total anterior já pago</span>
-                    <span>{moeda(totalAtual)}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-slate-700">
-                    <span>Novos itens a adicionar</span>
-                    <span>{moeda(subtotal)}</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex justify-between">
-                    <span>Novos itens</span>
-                    <span>{moeda(subtotal)}</span>
-                  </div>
-                  {pedidoAbertoId && (
-                    <div className="flex justify-between">
-                      <span>Total atual do pedido</span>
-                      <span>{moeda(totalAtual)}</span>
-                    </div>
-                  )}
-                </>
+              <div className="flex justify-between">
+                <span>Novos itens</span>
+                <span>{moeda(subtotal)}</span>
+              </div>
+              {pedidoAbertoId && (
+                <div className="flex justify-between">
+                  <span>Total atual do pedido</span>
+                  <span>{moeda(totalAtual)}</span>
+                </div>
               )}
 
               {descontoExibido > 0 && (
@@ -2929,6 +2961,9 @@ function extrairOpcoesSecao(secao?: SecaoCardapio): OpcaoItemCombo[] {
     if (produtosCombo.length > 0 && !produto.disponivelNoCombo) return
 
     const precoAdicional = Number(produto.valorAdicionalCombo || 0)
+    const produtoIdNum = Number(produto.id)
+    const produtoId = Number.isFinite(produtoIdNum) && produtoIdNum > 0 ? produtoIdNum : undefined
+    const disponivelNoCombo = Boolean(produto.disponivelNoCombo)
 
     if (produto.variacoes && produto.variacoes.length > 1) {
       produto.variacoes.forEach((variacao) => {
@@ -2936,6 +2971,8 @@ function extrairOpcoesSecao(secao?: SecaoCardapio): OpcaoItemCombo[] {
           id: `${produto.id}-${variacao.id}`,
           nome: rotuloOpcaoVariacao(produto.nome, variacao),
           precoAdicional,
+          produtoId,
+          disponivelNoCombo,
         })
       })
     } else {
@@ -2943,6 +2980,8 @@ function extrairOpcoesSecao(secao?: SecaoCardapio): OpcaoItemCombo[] {
         id: String(produto.id),
         nome: formatarNome(produto.nome),
         precoAdicional,
+        produtoId,
+        disponivelNoCombo,
       })
     }
   })

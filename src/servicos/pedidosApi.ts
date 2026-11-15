@@ -75,6 +75,7 @@ export type ItemPedidoPayload = {
   quantidade: number
   observacao: string | null
   adicional_ids: number[]
+  combo_produto_ids?: number[]
   produto_nome?: string | null
 }
 
