@@ -85,6 +85,7 @@ export async function criarPedidoApi(data: {
   cliente_id: number | null
   usar_desconto_fidelidade: boolean
   para_viagem?: boolean
+  forma_pagamento?: FormaPagamentoApi
   itens: ItemPedidoPayload[]
 }) {
   const response = await apiFetch('/pedidos/', {
