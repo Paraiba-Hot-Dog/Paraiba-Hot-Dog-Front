@@ -544,6 +544,14 @@ export default function AnotarPedidos() {
     }
   }
 
+  function aplicarPedidoNaLista(pedidoSalvo: PedidoApi) {
+    if ((pedidoSalvo as unknown as { origem?: string }).origem === 'ifood') return
+    setPedidosAbertos((atual) => {
+      const semAtual = atual.filter((item) => item.id !== pedidoSalvo.id)
+      return [pedidoSalvo, ...semAtual].sort((a, b) => b.id - a.id)
+    })
+  }
+
   async function salvarPedidoAberto() {
     if (finalizando || !validarPedido(true) || !unidadeId) return
     if (isPago) {
@@ -563,11 +571,12 @@ export default function AnotarPedidos() {
             para_viagem: paraViagem,
             itens: itensPedidoPayload(),
           })
+      aplicarPedidoNaLista(salvo)
       setPedidoAbertoId(salvo.id)
       setParaViagem(Boolean(salvo.para_viagem))
       setPedido([])
       confirmarPedido(`Pedido #${salvo.id} mantido aberto e enviado para a cozinha.`)
-      await carregarPedidosAbertos(unidadeId)
+      void carregarPedidosAbertos(unidadeId)
     } catch (error) {
       setMensagemPedido(error instanceof Error ? error.message : 'Não foi possível salvar o pedido.')
     } finally {
@@ -581,13 +590,12 @@ export default function AnotarPedidos() {
     setEditandoItemId(item.id)
     setMensagemPedido('')
     try {
-      if (acao === 'adicionar') {
-        await aumentarQuantidadeItemPedidoApi(item.id)
-      } else {
-        await cancelarItemPedidoApi(item.id, acao === 'remover' ? 1 : undefined)
-      }
+      const atualizado = acao === 'adicionar'
+        ? await aumentarQuantidadeItemPedidoApi(item.id)
+        : await cancelarItemPedidoApi(item.id, acao === 'remover' ? 1 : undefined)
+      aplicarPedidoNaLista(atualizado)
       setMensagemPedido(`Pedido #${pedidoAbertoId} atualizado com sucesso.`, 'sucesso')
-      await carregarPedidosAbertos(unidadeId)
+      void carregarPedidosAbertos(unidadeId)
     } catch (error) {
       setMensagemPedido(error instanceof Error ? error.message : 'Não foi possível alterar o item.')
     } finally {
@@ -598,9 +606,10 @@ export default function AnotarPedidos() {
   async function atualizarObservacaoItemRegistrado(itemId: number, observacao: string | null) {
     if (!unidadeId) return
     try {
-      await atualizarObservacaoItemPedidoApi(itemId, observacao)
+      const atualizado = await atualizarObservacaoItemPedidoApi(itemId, observacao)
+      aplicarPedidoNaLista(atualizado)
       setMensagemPedido('Observação atualizada.', 'sucesso')
-      await carregarPedidosAbertos(unidadeId)
+      void carregarPedidosAbertos(unidadeId)
     } catch (error) {
       setMensagemPedido(error instanceof Error ? error.message : 'Não foi possível atualizar a observação.')
     }
@@ -613,33 +622,34 @@ export default function AnotarPedidos() {
     setFinalizando(true)
     let pedidoPersistido = false
     try {
-      let idParaFinalizar = pedidoAbertoId
       const pedidoSelecionadoAtual = pedidosAbertos.find((item) => item.id === pedidoAbertoId)
       if (pedidoSelecionadoAtual?.status === 'pago') {
         setMensagemPedido(`O pedido #${pedidoSelecionadoAtual.id} já está pago e não pode ser alterado.`)
         return
       }
-      if (idParaFinalizar && pedido.length) {
-        await adicionarItensPedidoApi(idParaFinalizar, itensPedidoPayload(), paraViagem)
-        pedidoPersistido = true
-        setPedido([])
-      }
-      if (!idParaFinalizar) {
-        const criado = await criarPedidoApi({
+
+      let finalizado: PedidoApi
+      if (pedidoAbertoId) {
+        if (pedido.length) {
+          const comItens = await adicionarItensPedidoApi(pedidoAbertoId, itensPedidoPayload(), paraViagem)
+          aplicarPedidoNaLista(comItens)
+          pedidoPersistido = true
+          setPedido([])
+        }
+        finalizado = await finalizarPedidoApi(pedidoAbertoId, pagamento as FormaPagamentoApi, paraViagem)
+      } else {
+        finalizado = await criarPedidoApi({
           unidade_id: unidadeId,
           nome_comanda: nomeComanda.trim(),
           cliente_id: clientePedido?.id ?? null,
           usar_desconto_fidelidade: usarDescontoFidelidade,
           para_viagem: paraViagem,
+          forma_pagamento: pagamento as FormaPagamentoApi,
           itens: itensPedidoPayload(),
         })
-        idParaFinalizar = criado.id
-        pedidoPersistido = true
-        setPedidoAbertoId(criado.id)
-        setPedido([])
       }
 
-      const finalizado = await finalizarPedidoApi(idParaFinalizar, pagamento as FormaPagamentoApi, paraViagem)
+      aplicarPedidoNaLista(finalizado)
       setPedido([])
       setPedidoAbertoId(null)
       setNomeComanda('')
@@ -650,10 +660,10 @@ export default function AnotarPedidos() {
       setParaViagem(false)
       setResumoKey((valor) => valor + 1)
       confirmarPedido(`Pedido #${finalizado.id} finalizado e enviado para a cozinha.`)
-      await carregarPedidosAbertos(unidadeId)
+      void carregarPedidosAbertos(unidadeId)
     } catch (error) {
       if (pedidoPersistido) {
-        await carregarPedidosAbertos(unidadeId)
+        void carregarPedidosAbertos(unidadeId)
       }
       setMensagemPedido(error instanceof Error ? error.message : 'Não foi possível finalizar o pedido.')
     } finally {
