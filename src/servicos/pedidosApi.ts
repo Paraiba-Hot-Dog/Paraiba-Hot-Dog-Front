@@ -100,7 +100,7 @@ export async function criarPedidoApi(data: {
 
 export async function listarPedidosAbertosApi(unidadeId?: number) {
   const response = await apiFetch('/pedidos/', {
-    params: { unidade_id: unidadeId, limit: 100 },
+    params: { unidade_id: unidadeId, limit: 100, apenas_hoje_ou_abertos: true },
   })
 
   if (!response.ok) throw await erroApi(response, 'listar pedidos abertos')

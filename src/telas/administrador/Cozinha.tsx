@@ -337,7 +337,7 @@ export default function Cozinha() {
       running = true
       const version = ++requestVersion.current
       const [local, external] = await Promise.allSettled([
-        aba === 'cancelados' ? listarPedidosCancelados(unit).then(canceladosLocais) : listarCozinha(unit, true).then(agrupar).then((all) => all.filter((o) => aba === 'fila' ? o.status !== 'entregue' && o.status !== 'cancelado' : o.status === 'entregue')),
+        aba === 'cancelados' ? listarPedidosCancelados(unit).then(canceladosLocais) : listarCozinha(unit, aba === 'prontos').then(agrupar).then((all) => all.filter((o) => aba === 'fila' ? o.status !== 'entregue' && o.status !== 'cancelado' : o.status === 'entregue')),
         carregarExternos(unit, aba),
       ])
       if (alive && version === requestVersion.current) {

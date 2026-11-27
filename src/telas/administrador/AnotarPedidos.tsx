@@ -325,10 +325,22 @@ export default function AnotarPedidos() {
     carregarPedidosAbertos(unidadeId)
 
     const intervalo = window.setInterval(() => {
-      carregarPedidosAbertos(unidadeId)
-    }, 5000)
+      if (!document.hidden) {
+        carregarPedidosAbertos(unidadeId)
+      }
+    }, 15000)
 
-    return () => window.clearInterval(intervalo)
+    const aoFicarVisivel = () => {
+      if (!document.hidden) {
+        carregarPedidosAbertos(unidadeId)
+      }
+    }
+    document.addEventListener('visibilitychange', aoFicarVisivel)
+
+    return () => {
+      window.clearInterval(intervalo)
+      document.removeEventListener('visibilitychange', aoFicarVisivel)
+    }
   }, [unidadeId])
 
   useEffect(() => {
